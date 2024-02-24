@@ -1,7 +1,7 @@
-FROM alpine:3.19.0 AS build
+FROM alpine AS build
 
 ARG BUILD=quic
-ARG NGINX_VER=1.25.3
+ARG NGINX_VER=1.25.4
 
 ARG LUAJIT_INC=/usr/include/luajit-2.1
 ARG LUAJIT_LIB=/usr/lib
@@ -22,7 +22,7 @@ RUN apk update && apk add --no-cache ca-certificates build-base patch cmake git 
     libatomic_ops-dev zlib-dev luajit-dev pcre2-dev linux-headers yajl-dev libxml2-dev libxslt-dev perl-dev curl-dev lmdb-dev libfuzzy2-dev lua5.1-dev lmdb-dev geoip-dev libmaxminddb-dev gd-dev
 
 # OpenSSL
-RUN git clone --recursive https://github.com/quictls/openssl --branch openssl-3.1.4+quic /src/openssl
+RUN git clone --recursive https://github.com/quictls/openssl --branch openssl-3.1.5+quic /src/openssl
 
 # lua
 RUN mkdir lua && cd lua && \
@@ -41,7 +41,7 @@ RUN mkdir lua && cd lua && \
     git clone --recursive https://github.com/openresty/headers-more-nginx-module
 
 # WAF & build
-RUN git clone --recursive https://github.com/SpiderLabs/ModSecurity && \
+RUN git clone --recursive https://github.com/owasp-modsecurity/ModSecurity && \
     cd /src/ModSecurity && \
     /src/ModSecurity/build.sh && /src/ModSecurity/configure --with-pcre2 --with-lmdb && \
     make -j"$(expr $(nproc) + 1)" && make install && \
@@ -54,7 +54,7 @@ RUN cd /src/nginx && wget -O - https://nginx.org/download/nginx-$NGINX_VER.tar.g
     /src/nginx/configure \
         --prefix=/etc/nginx \
         # --user=http --group=http \
-        --build=CODA --builddir=build \
+        --build=$BUILD --builddir=build \
         --with-threads --with-file-aio \
         --with-http_ssl_module --with-http_v2_module --with-http_v3_module \
         --with-http_realip_module --with-http_addition_module --with-http_xslt_module --with-http_image_filter_module \
@@ -78,11 +78,11 @@ RUN cd /src/nginx && wget -O - https://nginx.org/download/nginx-$NGINX_VER.tar.g
         --with-libatomic \
         --with-openssl=../openssl \
         --with-debug && \
-    make -j"$(expr $(nproc) + 1)" && make install && rm /etc/nginx/conf/*.default && \
-    cd /src/lua/lua-resty-core && make install PREFIX=/etc/nginx && \
-    cd /src/lua/lua-resty-lrucache && make install PREFIX=/etc/nginx
+    make -j"$(expr $(nproc) + 1)" && make install && rm /etc/nginx/conf/*.default
+# openresty need bash
+RUN apk add bash && cd /src/lua/lua-resty-core && make install PREFIX=/etc/nginx && cd /src/lua/lua-resty-lrucache && make install PREFIX=/etc/nginx
 
-FROM python:3.12.1-alpine3.19
+FROM python:3.12.2-alpine3.19
 COPY --from=build /etc/nginx                                     /etc/nginx
 COPY --from=build /usr/local/lib/perl5                           /usr/local/lib/perl5
 COPY --from=build /usr/lib/perl5/core_perl/perllocal.pod         /usr/lib/perl5/core_perl/perllocal.pod
