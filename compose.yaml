@@ -1,0 +1,14 @@
+version: '3.9'
+services:
+  nginx:
+    image: nginx
+    container_name: nginx:1.25.4
+    volumes:
+      - ./conf:/etc/nginx/conf
+      - ./html:/etc/nginx/html
+      - ./logs:/etc/nginx/logs
+    environment:
+      - TZ=Asia/Shanghai
+    restart: always
+    privileged: false
+    network_mode: host
