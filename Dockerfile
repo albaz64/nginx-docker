@@ -1,6 +1,6 @@
 FROM alpine AS build
 
-ARG BUILD=20240301
+ARG BUILD=20240401
 ARG NGINX_VER=1.25.4
 
 ARG LUAJIT_INC=/usr/include/luajit-2.1
@@ -29,7 +29,8 @@ RUN mkdir -p /src/nginx/src/module && cd /src/nginx/src/module && \
     git clone --recursive https://github.com/google/ngx_brotli && \
     git clone --recursive https://github.com/SpiderLabs/ModSecurity-nginx && \
     git clone --recursive https://github.com/openresty/lua-nginx-module && \
-    git clone --recursive https://github.com/openresty/headers-more-nginx-module
+    git clone --recursive https://github.com/openresty/headers-more-nginx-module && \
+    git clone --recursive https://github.com/openresty/echo-nginx-module.git
 
 # WAF
 RUN git clone --recursive https://github.com/owasp-modsecurity/ModSecurity && \
@@ -63,6 +64,7 @@ RUN cd /src/nginx && wget -O - https://nginx.org/download/nginx-$NGINX_VER.tar.g
         --add-module=src/module/ModSecurity-nginx \
         --add-module=src/module/lua-nginx-module \
         --add-module=src/module/headers-more-nginx-module \
+        --add-module=src/module/echo-nginx-module \
         --with-cc-opt='-march=x86-64 -O2 -pipe -fomit-frame-pointer -fno-plt -fexceptions -D_FORTIFY_src=2 -fstack-clash-protection -fcf-protection -Wformat -Werror=format-security -DNGX_QUIC_DEBUG_PACKETS -DNGX_QUIC_DEBUG_CRYPTO' \
         --with-ld-opt='-Wl,--as-needed,-z,relro,-z,now -flto=auto' \
         --with-pcre --with-pcre-jit \
