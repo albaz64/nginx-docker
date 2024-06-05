@@ -1,7 +1,7 @@
 FROM alpine AS build
 
-ARG BUILD=20240401
-ARG NGINX_VER=1.25.4
+ARG BUILD=20240606
+ARG NGINX_VER=1.27.0
 
 ARG LUAJIT_INC=/usr/include/luajit-2.1
 ARG LUAJIT_LIB=/usr/lib
@@ -76,7 +76,7 @@ RUN cd /src/nginx && wget -O - https://nginx.org/download/nginx-$NGINX_VER.tar.g
 # openresty need bash
 RUN apk add bash && cd /src/lua/lua-resty-core && make install PREFIX=/etc/nginx && cd /src/lua/lua-resty-lrucache && make install PREFIX=/etc/nginx
 
-FROM python:3.12.2-alpine3.19
+FROM python:alpine
 COPY --from=build /etc/nginx                                     /etc/nginx
 COPY --from=build /usr/local/lib/perl5                           /usr/local/lib/perl5
 COPY --from=build /usr/lib/perl5/core_perl/perllocal.pod         /usr/lib/perl5/core_perl/perllocal.pod
