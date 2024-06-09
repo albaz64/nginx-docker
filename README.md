@@ -3,19 +3,19 @@
  Enhanced Nginx Alpine Dockerfile with Modules.
  Based on <https://github.com/ZoeyVid/nginx-quic/>
 
-## use
+## Use
 
 build or pull
 
-```
-docker build -t nginx:1.25.4 .
+```bash
+docker build -t nginx:1.27.0 .
 
-docker pull albaz64/nginx:1.25.4
+docker pull albaz64/nginx:1.27.0
 ```
 
 View version information
 
-```shell
+```bash
 $ docker run -it --rm --entrypoint /bin/sh nginx:1.25.4 -c 'nginx -V'
 nginx version: nginx/1.25.4 (20240301)
 built by gcc 13.2.1 20231014 (Alpine 13.2.1_git20231014)
@@ -31,7 +31,7 @@ configure arguments: --prefix=/etc/nginx --build=20240301 --builddir=build --wit
 
 ## compose
 
-```shell
+```bash
 vim compose.yaml
 
 docker compose up -d
