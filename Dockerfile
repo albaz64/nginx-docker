@@ -1,6 +1,6 @@
 FROM alpine AS build
 
-ARG BUILD=20240606
+ARG BUILD=20240630
 ARG NGINX_VER=1.27.0
 
 ARG LUAJIT_INC=/usr/include/luajit-2.1
@@ -21,16 +21,17 @@ RUN mkdir lua && \
 
 # modules
 RUN mkdir -p /src/nginx/src/module && cd /src/nginx/src/module && \
-    git clone --recursive https://github.com/arut/nginx-rtmp-module && \
-    git clone --recursive https://github.com/nginx/njs && \
-    git clone --recursive https://github.com/leev/ngx_http_geoip2_module && \
-    git clone --recursive https://github.com/aperezdc/ngx-fancyindex && \
-    git clone --recursive https://github.com/vision5/ngx_devel_kit && \
-    git clone --recursive https://github.com/google/ngx_brotli && \
-    git clone --recursive https://github.com/SpiderLabs/ModSecurity-nginx && \
-    git clone --recursive https://github.com/openresty/lua-nginx-module && \
-    git clone --recursive https://github.com/openresty/headers-more-nginx-module && \
-    git clone --recursive https://github.com/openresty/echo-nginx-module.git
+    git clone --recursive https://github.com/arut/nginx-rtmp-module.git && \
+    git clone --recursive https://github.com/nginx/njs.git && \
+    git clone --recursive https://github.com/leev/ngx_http_geoip2_module.git && \
+    git clone --recursive https://github.com/aperezdc/ngx-fancyindex.git && \
+    git clone --recursive https://github.com/vision5/ngx_devel_kit.git && \
+    git clone --recursive https://github.com/google/ngx_brotli.git && \
+    git clone --recursive https://github.com/SpiderLabs/ModSecurity-nginx.git && \
+    git clone --recursive https://github.com/openresty/lua-nginx-module.git && \
+    git clone --recursive https://github.com/openresty/headers-more-nginx-module.git && \
+    git clone --recursive https://github.com/openresty/echo-nginx-module.git && \
+    git clone --recursive https://github.com/vozlt/nginx-module-vts.git
 
 # WAF
 RUN git clone --recursive https://github.com/owasp-modsecurity/ModSecurity && \
@@ -65,6 +66,7 @@ RUN cd /src/nginx && wget -O - https://nginx.org/download/nginx-$NGINX_VER.tar.g
         --add-module=src/module/lua-nginx-module \
         --add-module=src/module/headers-more-nginx-module \
         --add-module=src/module/echo-nginx-module \
+        --add-module=src/module/nginx-module-vts \
         --with-cc-opt='-march=x86-64 -O2 -pipe -fomit-frame-pointer -fno-plt -fexceptions -D_FORTIFY_src=2 -fstack-clash-protection -fcf-protection -Wformat -Werror=format-security -DNGX_QUIC_DEBUG_PACKETS -DNGX_QUIC_DEBUG_CRYPTO' \
         --with-ld-opt='-Wl,--as-needed,-z,relro,-z,now -flto=auto' \
         --with-pcre --with-pcre-jit \
@@ -74,9 +76,12 @@ RUN cd /src/nginx && wget -O - https://nginx.org/download/nginx-$NGINX_VER.tar.g
     make -j"$(expr $(nproc) + 1)" && make install && rm /etc/nginx/conf/*.default && strip -s /etc/nginx/sbin/nginx
 
 # openresty need bash
-RUN apk add bash && cd /src/lua/lua-resty-core && make install PREFIX=/etc/nginx && cd /src/lua/lua-resty-lrucache && make install PREFIX=/etc/nginx
+RUN apk add bash && \
+    cd /src/lua/lua-resty-core && make install PREFIX=/etc/nginx && \
+    cd /src/lua/lua-resty-lrucache && make install PREFIX=/etc/nginx && \
+    perl /src/openssl/configdata.pm --dump
 
-FROM python:alpine
+FROM alpine
 COPY --from=build /etc/nginx                                     /etc/nginx
 COPY --from=build /usr/local/lib/perl5                           /usr/local/lib/perl5
 COPY --from=build /usr/lib/perl5/core_perl/perllocal.pod         /usr/lib/perl5/core_perl/perllocal.pod
