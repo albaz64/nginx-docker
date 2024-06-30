@@ -1,9 +1,10 @@
 services:
   nginx:
-    image: nginx:1.27.0
+    image: albaz64/nginx:1.27.0
     container_name: nginx
     volumes:
-      - ./conf:/etc/nginx/conf
+      # - ./conf:/etc/nginx/conf
+      - ./nginx.conf:/etc/nginx/conf/nginx.conf
       - ./html:/etc/nginx/html
       - ./logs:/etc/nginx/logs
     environment:

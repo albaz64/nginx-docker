@@ -26,8 +26,10 @@ configure arguments: --prefix=/etc/nginx --build=20240630 --builddir=build --wit
 
 **All files are in `/etc/nginx` (/etc/nginx/conf/nginx.conf)**
 
-> nginx.conf `http` add
-`lua_package_path "/etc/nginx/lib/lua/?.lua;;";`
+> nginx.conf `http` need `lua_package_path "/etc/nginx/lib/lua/?.lua;;";`
+
+If warn this↓ add `variables_hash_max_size 2048;` to `http`
+`nginx: [warn] could not build optimal variables_hash, you should increase either ariables_hash_max_size: 1024 or variables_hash_bucket_size: 64; ignoring variables_hash_bucket_size`
 
 ### Modules
 
