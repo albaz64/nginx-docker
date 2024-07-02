@@ -1,25 +1,28 @@
 FROM alpine AS build
 
-ARG BUILD=20240630
+ARG BUILD=20240702
+ARG NGX_PREFIX=/etc/nginx
 ARG NGINX_VER=1.27.0
 
+# lua-resty-* require
 ARG LUAJIT_INC=/usr/include/luajit-2.1
 ARG LUAJIT_LIB=/usr/lib
 
 WORKDIR /src
 
-RUN apk update && apk add --no-cache ca-certificates build-base patch cmake git libtool autoconf automake \
+# OpenResty need bash now
+RUN apk update && apk add --no-cache ca-certificates build-base patch cmake git libtool autoconf automake bash \
     libatomic_ops-dev zlib-dev luajit-dev pcre2-dev linux-headers yajl-dev libxml2-dev libxslt-dev perl-dev curl-dev lmdb-dev libfuzzy2-dev lua5.1-dev lmdb-dev geoip-dev libmaxminddb-dev gd-dev
 
 # OpenSSL
 RUN git clone --recursive https://github.com/quictls/openssl
 
-# lua
+# Lua
 RUN mkdir lua && \
     git clone --recursive https://github.com/openresty/lua-resty-core lua/lua-resty-core && \
     git clone --recursive https://github.com/openresty/lua-resty-lrucache lua/lua-resty-lrucache
 
-# modules
+# Modules
 RUN mkdir -p /src/nginx/src/module && cd /src/nginx/src/module && \
     git clone --recursive https://github.com/arut/nginx-rtmp-module.git && \
     git clone --recursive https://github.com/nginx/njs.git && \
@@ -31,21 +34,22 @@ RUN mkdir -p /src/nginx/src/module && cd /src/nginx/src/module && \
     git clone --recursive https://github.com/openresty/lua-nginx-module.git && \
     git clone --recursive https://github.com/openresty/headers-more-nginx-module.git && \
     git clone --recursive https://github.com/openresty/echo-nginx-module.git && \
-    git clone --recursive https://github.com/vozlt/nginx-module-vts.git
+    git clone --recursive https://github.com/vozlt/nginx-module-vts.git && \
+    git clone --recursive https://github.com/yaoweibin/ngx_http_substitutions_filter_module.git
 
 # WAF
 RUN git clone --recursive https://github.com/owasp-modsecurity/ModSecurity && \
     cd /src/ModSecurity && \
     /src/ModSecurity/build.sh && /src/ModSecurity/configure --with-pcre2 --with-lmdb && \
-    make -j"$(expr $(nproc) + 1)" && make install && \
+    make -j"$(nproc)" && make install && \
     strip -s /usr/local/modsecurity/lib/libmodsecurity.so.3
 
-# build
+# Build
 RUN cd /src/nginx && wget -O - https://nginx.org/download/nginx-$NGINX_VER.tar.gz | tar -zxf - --strip-components=1 && \
     patch -p1 < <(curl -sSL https://raw.githubusercontent.com/nginx-modules/ngx_http_tls_dyn_size/master/nginx__dynamic_tls_records_1.25.1%2B.patch) && \
     patch -p1 < <(curl -sSL https://raw.githubusercontent.com/openresty/openresty/master/patches/nginx-1.25.3-resolver_conf_parsing.patch) && \
     /src/nginx/configure \
-        --prefix=/etc/nginx \
+        --prefix=$NGX_PREFIX \
         # --user=http --group=http \
         --build=$BUILD --builddir=build \
         --with-threads --with-file-aio \
@@ -67,28 +71,32 @@ RUN cd /src/nginx && wget -O - https://nginx.org/download/nginx-$NGINX_VER.tar.g
         --add-module=src/module/headers-more-nginx-module \
         --add-module=src/module/echo-nginx-module \
         --add-module=src/module/nginx-module-vts \
+        --add-module=src/module/ngx_http_substitutions_filter_module \
         --with-cc-opt='-march=x86-64 -O2 -pipe -fomit-frame-pointer -fno-plt -fexceptions -D_FORTIFY_src=2 -fstack-clash-protection -fcf-protection -Wformat -Werror=format-security -DNGX_QUIC_DEBUG_PACKETS -DNGX_QUIC_DEBUG_CRYPTO' \
         --with-ld-opt='-Wl,--as-needed,-z,relro,-z,now -flto=auto' \
         --with-pcre --with-pcre-jit \
         --with-libatomic \
-        --with-openssl=../openssl \
+        --with-openssl=/src/openssl \
         --with-debug && \
-    make -j"$(expr $(nproc) + 1)" && make install && rm /etc/nginx/conf/*.default && strip -s /etc/nginx/sbin/nginx
+    make -j"$(nproc)" && make install && rm $NGX_PREFIX/conf/*.default && strip -s $NGX_PREFIX/sbin/nginx
 
-# openresty need bash
-RUN apk add bash && \
-    cd /src/lua/lua-resty-core && make install PREFIX=/etc/nginx && \
-    cd /src/lua/lua-resty-lrucache && make install PREFIX=/etc/nginx && \
+RUN cd /src/lua/lua-resty-core && make install PREFIX=$NGX_PREFIX && \
+    cd /src/lua/lua-resty-lrucache && make install PREFIX=$NGX_PREFIX && \
     perl /src/openssl/configdata.pm --dump
 
 FROM alpine
-COPY --from=build /etc/nginx                                     /etc/nginx
+
+VOLUME ["/etc/nginx/conf"]
+
+ARG NGX_PREFIX=/etc/nginx
+
+COPY --from=build $NGX_PREFIX                                     $NGX_PREFIX
 COPY --from=build /usr/local/lib/perl5                           /usr/local/lib/perl5
 COPY --from=build /usr/lib/perl5/core_perl/perllocal.pod         /usr/lib/perl5/core_perl/perllocal.pod
 COPY --from=build /usr/local/modsecurity/lib/libmodsecurity.so.3 /usr/local/modsecurity/lib/libmodsecurity.so.3
-COPY --from=build /src/ModSecurity/unicode.mapping               /etc/nginx/conf/conf.d/include/unicode.mapping
-COPY --from=build /src/ModSecurity/modsecurity.conf-recommended  /etc/nginx/conf/conf.d/include/modsecurity.conf.example
+COPY --from=build /src/ModSecurity/unicode.mapping               $NGX_PREFIX/conf/conf.d/include/unicode.mapping
+COPY --from=build /src/ModSecurity/modsecurity.conf-recommended  $NGX_PREFIX/conf/conf.d/include/modsecurity.conf.example
 
-RUN apk update && apk add --no-cache ca-certificates tzdata tini zlib luajit pcre2 libstdc++ yajl libxml2 libxslt perl libcurl lmdb libfuzzy2 lua5.1-libs geoip libmaxminddb-libs gd && ln -s /etc/nginx/sbin/nginx /usr/sbin/nginx
+RUN apk update && apk add --no-cache ca-certificates tzdata tini zlib luajit pcre2 libstdc++ yajl libxml2 libxslt perl libcurl lmdb libfuzzy2 lua5.1-libs geoip libmaxminddb-libs gd && ln -s $NGX_PREFIX/sbin/nginx /usr/sbin/nginx
 ENTRYPOINT ["tini", "--", "nginx"]
 CMD ["-g", "daemon off;"]

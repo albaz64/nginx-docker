@@ -44,6 +44,7 @@ If warn this↓ add `variables_hash_max_size 2048;` to `http`
 - [Headers More](https://github.com/openresty/headers-more-nginx-module)
 - [Echo](https://github.com/openresty/echo-nginx-module)
 - [Virtual host Traffic Status](https://github.com/vozlt/nginx-module-vts)
+- [Regex Substitutions](https://github.com/yaoweibin/ngx_http_substitutions_filter_module)
 
 ## Compose
 
