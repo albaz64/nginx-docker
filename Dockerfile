@@ -1,6 +1,6 @@
 FROM alpine AS build
 
-ARG BUILD=20240702
+ARG BUILD=20240709
 ARG NGX_PREFIX=/etc/nginx
 ARG NGINX_VER=1.27.0
 
@@ -53,13 +53,45 @@ RUN cd /src/nginx && wget -O - https://nginx.org/download/nginx-$NGINX_VER.tar.g
         # --user=http --group=http \
         --build=$BUILD --builddir=build \
         --with-threads --with-file-aio \
-        --with-http_ssl_module --with-http_v2_module --with-http_v3_module \
-        --with-http_realip_module --with-http_addition_module --with-http_xslt_module --with-http_image_filter_module \
-        --with-http_geoip_module --with-http_sub_module --with-http_dav_module --with-http_mp4_module --with-http_gunzip_module --with-http_gzip_static_module --with-http_auth_request_module --with-http_secure_link_module --with-http_degradation_module --with-http_slice_module --with-http_stub_status_module \
+        # HTTP
+        --with-http_addition_module \
+        --with-http_auth_request_module \
+        --with-http_dav_module \
+        # libmaxminddb
+        --with-http_geoip_module \
+        --with-http_gunzip_module \
+        --with-http_gzip_static_module \
+        # libgd
+        --with-http_image_filter_module \
+        --with-http_mp4_module \
+        # perl
         --with-http_perl_module \
+        --with-http_random_index_module \
+        --with-http_realip_module \
+        --with-http_secure_link_module \
+        --with-http_slice_module \
+        # OpenSSL
+        --with-http_ssl_module \
+        --with-http_stub_status_module \
+        --with-http_sub_module \
+        --with-http_v2_module \
+        --with-http_v3_module \
+        # libxml2 libxslt
+        --with-http_xslt_module \
         # --http-client-body-temp-path=temp/client_body_temp --http-proxy-temp-path=temp/proxy_temp --http-fastcgi-temp-path=temp/fastcgi_temp --http-uwsgi-temp-path=temp/uwsgi_temp --http-scgi-temp-path=temp/scgi_temp \
-        --with-mail --with-mail_ssl_module \
-        --with-stream --with-stream_ssl_module --with-stream_realip_module --with-stream_geoip_module --with-stream_ssl_preread_module \
+        # MAIL
+        --with-mail \
+        --with-mail_ssl_module \
+        # STREAM
+        --with-stream \
+        --with-stream_geoip_module \
+        --with-stream_realip_module \
+        --with-stream_ssl_module \
+        --with-stream_ssl_preread_module \
+        # OTHER
+        # --with-google_perftools_module \
+        # --with-http_degradation_module \
+        # Third-party modules
         --add-module=src/module/nginx-rtmp-module \
         --add-module=src/module/njs/nginx \
         --add-module=src/module/ngx_http_geoip2_module \
@@ -74,7 +106,7 @@ RUN cd /src/nginx && wget -O - https://nginx.org/download/nginx-$NGINX_VER.tar.g
         --add-module=src/module/ngx_http_substitutions_filter_module \
         --with-cc-opt='-march=x86-64 -O2 -pipe -fomit-frame-pointer -fno-plt -fexceptions -D_FORTIFY_src=2 -fstack-clash-protection -fcf-protection -Wformat -Werror=format-security -DNGX_QUIC_DEBUG_PACKETS -DNGX_QUIC_DEBUG_CRYPTO' \
         --with-ld-opt='-Wl,--as-needed,-z,relro,-z,now -flto=auto' \
-        --with-pcre --with-pcre-jit \
+        --with-pcre-jit \
         --with-libatomic \
         --with-openssl=/src/openssl \
         --with-debug && \
