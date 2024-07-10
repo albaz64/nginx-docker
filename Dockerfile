@@ -39,6 +39,7 @@ RUN mkdir -p /src/nginx/src/module && cd /src/nginx/src/module && \
     git clone --depth 1 https://github.com/vision5/ngx_devel_kit.git devel_kit && \
     git clone --depth 1 https://github.com/owasp-modsecurity/ModSecurity-nginx.git modsecurity && \
     git clone --depth 1 https://github.com/yaoweibin/ngx_http_substitutions_filter_module.git substitutions_filter && \
+    git clone --depth 1 https://github.com/arut/nginx-dav-ext-module.git dav_ext && \
     git clone --depth 1 https://github.com/arut/nginx-rtmp-module.git rtmp
 
 # WAF
@@ -108,6 +109,7 @@ RUN cd /src/nginx && wget -O - https://nginx.org/download/nginx-$NGINX_VER.tar.g
         --add-module=src/module/devel_kit \
         --add-module=src/module/modsecurity \
         --add-module=src/module/substitutions_filter \
+        --add-module=src/module/dav_ext \
         --add-module=src/module/rtmp \
         --with-cc-opt='-march=x86-64 -O2 -pipe -fomit-frame-pointer -fno-plt -fexceptions -D_FORTIFY_src=2 -fstack-clash-protection -fcf-protection -Wformat -Werror=format-security -DNGX_QUIC_DEBUG_PACKETS -DNGX_QUIC_DEBUG_CRYPTO' \
         --with-ld-opt='-Wl,--as-needed,-z,relro,-z,now -flto=auto' \

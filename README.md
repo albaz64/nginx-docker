@@ -45,6 +45,7 @@ If warn this↓ add `variables_hash_max_size 2048;` to `http`
 - [Devel Kit](https://github.com/vision5/ngx_devel_kit)
 - [ModSecurity](https://github.com/SpiderLabs/ModSecurity-nginx)
 - [Regex Substitutions](https://github.com/yaoweibin/ngx_http_substitutions_filter_module)
+- [WebDav](https://github.com/arut/nginx-dav-ext-module)
 - [RTMP](https://github.com/arut/nginx-rtmp-module)
 
 ## Compose
@@ -56,3 +57,11 @@ docker compose up -d
 # For some distributions use this
 docker-compose up -d
 ```
+
+## Maybe add
+
+<https://github.com/masterzen/nginx-upload-progress-module>
+<https://github.com/evanmiller/mod_zip>
+<https://github.com/onnimonni/redis-nginx-module>
+<https://github.com/openresty/redis2-nginx-module>
+<https://github.com/wargio/naxsi/>
