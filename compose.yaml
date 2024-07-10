@@ -3,9 +3,9 @@ services:
     image: albaz64/nginx:1.27.0
     container_name: nginx
     volumes:
-      - ./nginx/conf/nginx.conf:/etc/nginx/conf/nginx.conf
-      - ./nginx/conf/cert/:/etc/nginx/conf/cert
-      - ./nginx/html:/etc/nginx/html
+      - ./nginx/conf/nginx.conf:/etc/nginx/conf/nginx.conf:ro
+      - ./nginx/conf/cert/:/etc/nginx/conf/cert:ro
+      - /srv/www/:/etc/nginx/html
       - ./nginx/logs:/etc/nginx/logs
       # copy your conf here
       # - ./nginx/swap:/etc/nginx/swap
@@ -13,5 +13,5 @@ services:
       - TZ=Asia/Shanghai
     restart: always
     # ngx_quic_bpf_module need privileged true
-    privileged: false
+    # privileged: true
     network_mode: host
