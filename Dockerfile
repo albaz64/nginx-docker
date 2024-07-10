@@ -1,6 +1,6 @@
 FROM alpine AS build
 
-ARG BUILD=20240709
+ARG BUILD=07-10-2024
 ARG NGX_PREFIX=/etc/nginx
 ARG NGINX_VER=1.27.0
 
@@ -15,27 +15,30 @@ RUN apk update && apk add --no-cache ca-certificates linux-headers build-base pa
     libatomic_ops-dev zlib-dev luajit-dev pcre2-dev yajl-dev libxml2-dev libxslt-dev perl-dev curl-dev lmdb-dev libfuzzy2-dev lua5.4-dev geoip-dev libmaxminddb-dev gd-dev
 
 # OpenSSL
-RUN git clone --depth 1 --recurse-submodules https://github.com/quictls/openssl.git
+RUN git clone --depth 1 https://github.com/quictls/openssl.git
 
 # Lua
 RUN mkdir lua && \
-    git clone --depth 1 https://github.com/openresty/lua-resty-core lua/resty-core && \
-    git clone --depth 1 https://github.com/openresty/lua-resty-lrucache lua/resty-lrucache
+    git clone --depth 1 https://github.com/openresty/lua-resty-core.git lua/resty-core && \
+    git clone --depth 1 https://github.com/openresty/lua-resty-lrucache.git lua/resty-lrucache
 
 # Modules
 RUN mkdir -p /src/nginx/src/module && cd /src/nginx/src/module && \
-    git clone --depth 1 https://github.com/arut/nginx-rtmp-module.git && \
-    git clone --depth 1 https://github.com/nginx/njs.git && \
-    git clone --depth 1 https://github.com/leev/ngx_http_geoip2_module.git && \
-    git clone --depth 1 https://github.com/aperezdc/ngx-fancyindex.git && \
-    git clone --depth 1 https://github.com/vision5/ngx_devel_kit.git && \
-    git clone --depth 1 --recurse-submodules -j8 https://github.com/google/ngx_brotli.git && \
-    git clone --depth 1 https://github.com/owasp-modsecurity/ModSecurity-nginx.git && \
-    git clone --depth 1 https://github.com/openresty/lua-nginx-module.git && \
-    git clone --depth 1 https://github.com/openresty/headers-more-nginx-module.git && \
-    git clone --depth 1 https://github.com/openresty/echo-nginx-module.git && \
-    git clone --depth 1 https://github.com/vozlt/nginx-module-vts.git && \
-    git clone --depth 1 https://github.com/yaoweibin/ngx_http_substitutions_filter_module.git
+    # official
+    git clone --depth 1 https://github.com/nginx/njs.git njs && \
+    # brotli compress
+    git clone --depth 1 --recurse-submodules -j8 https://github.com/google/ngx_brotli.git brotli && \
+    git clone --depth 1 https://github.com/openresty/lua-nginx-module.git lua && \
+    git clone --depth 1 https://github.com/openresty/echo-nginx-module.git echo && \
+    git clone --depth 1 https://github.com/openresty/headers-more-nginx-module.git headers && \
+    # Virtual host Traffic Status
+    git clone --depth 1 https://github.com/vozlt/nginx-module-vts.git vts && \
+    git clone --depth 1 https://github.com/leev/ngx_http_geoip2_module.git geoip2 && \
+    git clone --depth 1 https://github.com/aperezdc/ngx-fancyindex.git fancyindex && \
+    git clone --depth 1 https://github.com/vision5/ngx_devel_kit.git devel_kit && \
+    git clone --depth 1 https://github.com/owasp-modsecurity/ModSecurity-nginx.git modsecurity && \
+    git clone --depth 1 https://github.com/yaoweibin/ngx_http_substitutions_filter_module.git substitutions_filter && \
+    git clone --depth 1 https://github.com/arut/nginx-rtmp-module.git rtmp
 
 # WAF
 RUN git clone --depth 1 --recurse-submodules https://github.com/owasp-modsecurity/ModSecurity.git && \
@@ -47,7 +50,7 @@ RUN git clone --depth 1 --recurse-submodules https://github.com/owasp-modsecurit
 # Build
 RUN cd /src/nginx && wget -O - https://nginx.org/download/nginx-$NGINX_VER.tar.gz | tar -zxf - --strip-components=1 && \
     patch -p1 < <(curl -sSL https://raw.githubusercontent.com/nginx-modules/ngx_http_tls_dyn_size/master/nginx__dynamic_tls_records_1.25.1%2B.patch) && \
-    patch -p1 < <(curl -sSL https://raw.githubusercontent.com/openresty/openresty/master/patches/nginx-1.25.3-resolver_conf_parsing.patch) && \
+    patch -p1 < <(curl -sSL https://raw.githubusercontent.com/openresty/openresty/master/patches/nginx-1.27.0-resolver_conf_parsing.patch) && \
     /src/nginx/configure \
         --prefix=$NGX_PREFIX \
         # --user=http --group=http \
@@ -92,18 +95,18 @@ RUN cd /src/nginx && wget -O - https://nginx.org/download/nginx-$NGINX_VER.tar.g
         # --with-google_perftools_module \
         # --with-http_degradation_module \
         # Third-party modules
-        --add-module=src/module/nginx-rtmp-module \
         --add-module=src/module/njs/nginx \
-        --add-module=src/module/ngx_http_geoip2_module \
-        --add-module=src/module/ngx-fancyindex \
-        --add-module=src/module/ngx_devel_kit \
-        --add-module=src/module/ngx_brotli \
-        --add-module=src/module/ModSecurity-nginx \
-        --add-module=src/module/lua-nginx-module \
-        --add-module=src/module/headers-more-nginx-module \
-        --add-module=src/module/echo-nginx-module \
-        --add-module=src/module/nginx-module-vts \
-        --add-module=src/module/ngx_http_substitutions_filter_module \
+        --add-module=src/module/brotli \
+        --add-module=src/module/lua \
+        --add-module=src/module/echo \
+        --add-module=src/module/headers \
+        --add-module=src/module/vts \
+        --add-module=src/module/geoip2 \
+        --add-module=src/module/fancyindex \
+        --add-module=src/module/devel_kit \
+        --add-module=src/module/modsecurity \
+        --add-module=src/module/substitutions_filter \
+        --add-module=src/module/rtmp \
         --with-cc-opt='-march=x86-64 -O2 -pipe -fomit-frame-pointer -fno-plt -fexceptions -D_FORTIFY_src=2 -fstack-clash-protection -fcf-protection -Wformat -Werror=format-security -DNGX_QUIC_DEBUG_PACKETS -DNGX_QUIC_DEBUG_CRYPTO' \
         --with-ld-opt='-Wl,--as-needed,-z,relro,-z,now -flto=auto' \
         --with-pcre-jit \
@@ -117,7 +120,7 @@ RUN cd /src/lua/resty-core && make install PREFIX=$NGX_PREFIX && \
 
 FROM alpine
 
-VOLUME ["/etc/nginx/conf"]
+VOLUME ["/etc/nginx"]
 
 ARG NGX_PREFIX=/etc/nginx
 
