@@ -11,34 +11,34 @@ ARG LUAJIT_LIB=/usr/lib
 WORKDIR /src
 
 # OpenResty need bash now
-RUN apk update && apk add --no-cache ca-certificates build-base patch cmake git libtool autoconf automake bash \
-    libatomic_ops-dev zlib-dev luajit-dev pcre2-dev linux-headers yajl-dev libxml2-dev libxslt-dev perl-dev curl-dev lmdb-dev libfuzzy2-dev lua5.1-dev lmdb-dev geoip-dev libmaxminddb-dev gd-dev
+RUN apk update && apk add --no-cache ca-certificates linux-headers build-base patch cmake git libtool autoconf automake bash \
+    libatomic_ops-dev zlib-dev luajit-dev pcre2-dev yajl-dev libxml2-dev libxslt-dev perl-dev curl-dev lmdb-dev libfuzzy2-dev lua5.4-dev geoip-dev libmaxminddb-dev gd-dev
 
 # OpenSSL
-RUN git clone --recursive https://github.com/quictls/openssl
+RUN git clone --depth 1 --recurse-submodules https://github.com/quictls/openssl.git
 
 # Lua
 RUN mkdir lua && \
-    git clone --recursive https://github.com/openresty/lua-resty-core lua/lua-resty-core && \
-    git clone --recursive https://github.com/openresty/lua-resty-lrucache lua/lua-resty-lrucache
+    git clone --depth 1 https://github.com/openresty/lua-resty-core lua/resty-core && \
+    git clone --depth 1 https://github.com/openresty/lua-resty-lrucache lua/resty-lrucache
 
 # Modules
 RUN mkdir -p /src/nginx/src/module && cd /src/nginx/src/module && \
-    git clone --recursive https://github.com/arut/nginx-rtmp-module.git && \
-    git clone --recursive https://github.com/nginx/njs.git && \
-    git clone --recursive https://github.com/leev/ngx_http_geoip2_module.git && \
-    git clone --recursive https://github.com/aperezdc/ngx-fancyindex.git && \
-    git clone --recursive https://github.com/vision5/ngx_devel_kit.git && \
-    git clone --recursive https://github.com/google/ngx_brotli.git && \
-    git clone --recursive https://github.com/SpiderLabs/ModSecurity-nginx.git && \
-    git clone --recursive https://github.com/openresty/lua-nginx-module.git && \
-    git clone --recursive https://github.com/openresty/headers-more-nginx-module.git && \
-    git clone --recursive https://github.com/openresty/echo-nginx-module.git && \
-    git clone --recursive https://github.com/vozlt/nginx-module-vts.git && \
-    git clone --recursive https://github.com/yaoweibin/ngx_http_substitutions_filter_module.git
+    git clone --depth 1 https://github.com/arut/nginx-rtmp-module.git && \
+    git clone --depth 1 https://github.com/nginx/njs.git && \
+    git clone --depth 1 https://github.com/leev/ngx_http_geoip2_module.git && \
+    git clone --depth 1 https://github.com/aperezdc/ngx-fancyindex.git && \
+    git clone --depth 1 https://github.com/vision5/ngx_devel_kit.git && \
+    git clone --depth 1 --recurse-submodules -j8 https://github.com/google/ngx_brotli.git && \
+    git clone --depth 1 https://github.com/owasp-modsecurity/ModSecurity-nginx.git && \
+    git clone --depth 1 https://github.com/openresty/lua-nginx-module.git && \
+    git clone --depth 1 https://github.com/openresty/headers-more-nginx-module.git && \
+    git clone --depth 1 https://github.com/openresty/echo-nginx-module.git && \
+    git clone --depth 1 https://github.com/vozlt/nginx-module-vts.git && \
+    git clone --depth 1 https://github.com/yaoweibin/ngx_http_substitutions_filter_module.git
 
 # WAF
-RUN git clone --recursive https://github.com/owasp-modsecurity/ModSecurity && \
+RUN git clone --depth 1 --recurse-submodules https://github.com/owasp-modsecurity/ModSecurity.git && \
     cd /src/ModSecurity && \
     /src/ModSecurity/build.sh && /src/ModSecurity/configure --with-pcre2 --with-lmdb && \
     make -j"$(nproc)" && make install && \
@@ -107,13 +107,12 @@ RUN cd /src/nginx && wget -O - https://nginx.org/download/nginx-$NGINX_VER.tar.g
         --with-cc-opt='-march=x86-64 -O2 -pipe -fomit-frame-pointer -fno-plt -fexceptions -D_FORTIFY_src=2 -fstack-clash-protection -fcf-protection -Wformat -Werror=format-security -DNGX_QUIC_DEBUG_PACKETS -DNGX_QUIC_DEBUG_CRYPTO' \
         --with-ld-opt='-Wl,--as-needed,-z,relro,-z,now -flto=auto' \
         --with-pcre-jit \
-        --with-libatomic \
         --with-openssl=/src/openssl \
         --with-debug && \
     make -j"$(nproc)" && make install && rm $NGX_PREFIX/conf/*.default && strip -s $NGX_PREFIX/sbin/nginx
 
-RUN cd /src/lua/lua-resty-core && make install PREFIX=$NGX_PREFIX && \
-    cd /src/lua/lua-resty-lrucache && make install PREFIX=$NGX_PREFIX && \
+RUN cd /src/lua/resty-core && make install PREFIX=$NGX_PREFIX && \
+    cd /src/lua/resty-lrucache && make install PREFIX=$NGX_PREFIX && \
     perl /src/openssl/configdata.pm --dump
 
 FROM alpine
@@ -129,6 +128,7 @@ COPY --from=build /usr/local/modsecurity/lib/libmodsecurity.so.3 /usr/local/mods
 COPY --from=build /src/ModSecurity/unicode.mapping               $NGX_PREFIX/conf/conf.d/include/unicode.mapping
 COPY --from=build /src/ModSecurity/modsecurity.conf-recommended  $NGX_PREFIX/conf/conf.d/include/modsecurity.conf.example
 
-RUN apk update && apk add --no-cache ca-certificates tzdata tini zlib luajit pcre2 libstdc++ yajl libxml2 libxslt perl libcurl lmdb libfuzzy2 lua5.1-libs geoip libmaxminddb-libs gd && ln -s $NGX_PREFIX/sbin/nginx /usr/sbin/nginx
+RUN apk update && apk add --no-cache ca-certificates tzdata tini zlib luajit pcre2 libstdc++ yajl libxml2 libxslt perl libcurl lmdb libfuzzy2 lua5.4-libs geoip libmaxminddb-libs gd && \
+    ln -s $NGX_PREFIX/sbin/nginx /usr/sbin/nginx
 ENTRYPOINT ["tini", "--", "nginx"]
 CMD ["-g", "daemon off;"]
