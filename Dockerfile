@@ -28,7 +28,8 @@ RUN mkdir -p /src/nginx/src/module && cd /src/nginx/src/module && \
     git clone --depth 1 https://github.com/nginx/njs.git njs && \
     # brotli compress
     git clone --depth 1 --recurse-submodules -j8 https://github.com/google/ngx_brotli.git brotli && \
-    git clone --depth 1 https://github.com/openresty/lua-nginx-module.git lua && \
+    git clone --depth 1 https://github.com/openresty/lua-nginx-module.git lua_http && \
+    git clone --depth 1 https://github.com/openresty/stream-lua-nginx-module.git lua_stream && \
     git clone --depth 1 https://github.com/openresty/echo-nginx-module.git echo && \
     git clone --depth 1 https://github.com/openresty/headers-more-nginx-module.git headers && \
     # Virtual host Traffic Status
@@ -97,7 +98,8 @@ RUN cd /src/nginx && wget -O - https://nginx.org/download/nginx-$NGINX_VER.tar.g
         # Third-party modules
         --add-module=src/module/njs/nginx \
         --add-module=src/module/brotli \
-        --add-module=src/module/lua \
+        --add-module=src/module/lua_http \
+        --add-module=src/module/lua_stream \
         --add-module=src/module/echo \
         --add-module=src/module/headers \
         --add-module=src/module/vts \
