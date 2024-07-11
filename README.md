@@ -58,6 +58,18 @@ docker compose up -d
 docker-compose up -d
 ```
 
+## Test
+
+### HTTP/3
+
+HTTP/3 QUIC work on the **TLS**.
+
+Ensure that your curl supports HTTP3.
+
+```bash
+curl --resolve <domain.tld>:<port>:<IP> --http3 -IL https://domain.tld
+```
+
 ## Maybe add
 
 - <https://github.com/masterzen/nginx-upload-progress-module>
