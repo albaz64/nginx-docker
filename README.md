@@ -42,7 +42,7 @@ If warn this↓ add `variables_hash_max_size 2048;` to `http`
 - [Virtual host Traffic Status](https://github.com/vozlt/nginx-module-vts)
 - [GeoIP2](https://github.com/leev/ngx_http_geoip2_module)
 - [Fancyindex](https://github.com/aperezdc/ngx-fancyindex)
-- [Devel Kit](https://github.com/vision5/ngx_devel_kit)
+- [NDK](https://github.com/vision5/ngx_devel_kit)
 - [ModSecurity](https://github.com/SpiderLabs/ModSecurity-nginx)
 - [Regex Substitutions](https://github.com/yaoweibin/ngx_http_substitutions_filter_module)
 - [WebDav](https://github.com/arut/nginx-dav-ext-module)
@@ -60,8 +60,9 @@ docker-compose up -d
 
 ## Maybe add
 
-<https://github.com/masterzen/nginx-upload-progress-module>
-<https://github.com/evanmiller/mod_zip>
-<https://github.com/onnimonni/redis-nginx-module>
-<https://github.com/openresty/redis2-nginx-module>
-<https://github.com/wargio/naxsi/>
+- <https://github.com/masterzen/nginx-upload-progress-module>
+- <https://github.com/evanmiller/mod_zip>
+- <https://github.com/tokers/zstd-nginx-module>
+- <https://github.com/onnimonni/redis-nginx-module>
+- <https://github.com/openresty/redis2-nginx-module>
+- <https://github.com/wargio/naxsi/>
