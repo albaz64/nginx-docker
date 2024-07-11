@@ -1,6 +1,6 @@
 FROM alpine AS build
 
-ARG BUILD=07-10-2024
+ARG BUILD=07-11-2024
 ARG NGX_PREFIX=/etc/nginx
 ARG NGINX_VER=1.27.0
 
@@ -12,7 +12,7 @@ WORKDIR /src
 
 # OpenResty need bash now
 RUN apk update && apk add --no-cache ca-certificates linux-headers build-base patch cmake git libtool autoconf automake bash \
-    libatomic_ops-dev zlib-dev luajit-dev pcre2-dev yajl-dev libxml2-dev libxslt-dev perl-dev curl-dev lmdb-dev libfuzzy2-dev lua5.4-dev geoip-dev libmaxminddb-dev gd-dev
+    libatomic_ops-dev zlib-dev luajit-dev pcre2-dev yajl-dev libxml2-dev libxslt-dev perl-dev curl-dev lmdb-dev libfuzzy2-dev lua5.4-dev gd-dev
 
 # OpenSSL
 RUN git clone --depth 1 https://github.com/quictls/openssl.git
@@ -50,6 +50,12 @@ RUN cd /src/nginx/src/module/brotli/deps/brotli && mkdir out && cd out && \
           -DCMAKE_INSTALL_PREFIX=./installed .. && \
     cmake --build . --config Release --target brotlienc
 
+# Build static libmaxminddb
+RUN git clone --depth 1 --recurse-submodules https://github.com/maxmind/libmaxminddb.git && \
+    cd /src/libmaxminddb && \
+    /src/libmaxminddb/bootstrap && /src/libmaxminddb/configure --prefix=/usr/local --enable-shared=no --enable-static=yes && \
+    make && make check && make install
+
 # WAF
 RUN git clone --depth 1 --recurse-submodules https://github.com/owasp-modsecurity/ModSecurity.git && \
     cd /src/ModSecurity && \
@@ -70,8 +76,7 @@ RUN cd /src/nginx && wget -O - https://nginx.org/download/nginx-$NGINX_VER.tar.g
         --with-http_addition_module \
         --with-http_auth_request_module \
         --with-http_dav_module \
-        # libmaxminddb
-        --with-http_geoip_module \
+        # --with-http_geoip_module \
         --with-http_gunzip_module \
         --with-http_gzip_static_module \
         # libgd
@@ -97,7 +102,7 @@ RUN cd /src/nginx && wget -O - https://nginx.org/download/nginx-$NGINX_VER.tar.g
         --with-mail_ssl_module \
         # STREAM
         --with-stream \
-        --with-stream_geoip_module \
+        # --with-stream_geoip_module \
         --with-stream_realip_module \
         --with-stream_ssl_module \
         --with-stream_ssl_preread_module \
@@ -112,6 +117,7 @@ RUN cd /src/nginx && wget -O - https://nginx.org/download/nginx-$NGINX_VER.tar.g
         --add-module=src/module/echo \
         --add-module=src/module/headers \
         --add-module=src/module/vts \
+        # libmaxminddb
         --add-module=src/module/geoip2 \
         --add-module=src/module/fancyindex \
         --add-module=src/module/ndk \
@@ -120,8 +126,8 @@ RUN cd /src/nginx && wget -O - https://nginx.org/download/nginx-$NGINX_VER.tar.g
         --add-module=src/module/dav_ext \
         --add-module=src/module/rtmp \
         # `-m64 -march=native -mtune=native -Ofast` is better than `-march=x86-64 -O2`
-        --with-cc-opt='-m64 -march=native -mtune=native -Ofast -pipe -fomit-frame-pointer -fno-plt -fexceptions -flto -funroll-loops -ffunction-sections -fdata-sections -D_FORTIFY_src=2 -fstack-clash-protection -fcf-protection -Wformat -Werror=format-security -DNGX_QUIC_DEBUG_PACKETS -DNGX_QUIC_DEBUG_CRYPTO' \
-        --with-ld-opt='-Wl,-s -Wl,-Bsymbolic -Wl,--gc-sections,--as-needed,-z,relro,-z,now -flto=auto' \
+        --with-cc-opt='-m64 -march=native -mtune=native -Ofast -pipe -fomit-frame-pointer -fno-plt -fexceptions -flto -funroll-loops -ffunction-sections -fdata-sections -D_FORTIFY_src=2 -fstack-clash-protection -fcf-protection -Wformat -Werror=format-security -I/usr/local/include -DNGX_QUIC_DEBUG_PACKETS -DNGX_QUIC_DEBUG_CRYPTO' \
+        --with-ld-opt='-Wl,-s -Wl,-Bsymbolic -Wl,--gc-sections,--as-needed,-z,relro,-z,now -flto=auto -L/usr/local/lib -lmaxminddb' \
         --with-pcre-jit \
         --with-openssl=/src/openssl \
         --with-debug && \
@@ -144,7 +150,7 @@ COPY --from=build /usr/local/modsecurity/lib/libmodsecurity.so.3 /usr/local/mods
 COPY --from=build /src/ModSecurity/unicode.mapping               $NGX_PREFIX/conf/conf.d/include/unicode.mapping
 COPY --from=build /src/ModSecurity/modsecurity.conf-recommended  $NGX_PREFIX/conf/conf.d/include/modsecurity.conf.example
 
-RUN apk update && apk add --no-cache ca-certificates tzdata tini zlib luajit pcre2 libstdc++ yajl libxml2 libxslt perl libcurl lmdb libfuzzy2 lua5.4-libs geoip libmaxminddb-libs gd && \
+RUN apk update && apk add --no-cache ca-certificates tzdata tini zlib luajit pcre2 libstdc++ yajl libxml2 libxslt perl libcurl lmdb libfuzzy2 lua5.4-libs gd && \
     ln -s $NGX_PREFIX/sbin/nginx /usr/sbin/nginx
 ENTRYPOINT ["tini", "--", "nginx"]
 CMD ["-g", "daemon off;"]
