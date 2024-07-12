@@ -1,6 +1,6 @@
 FROM alpine AS build
 
-ARG BUILD=07-11-2024
+ARG BUILD=07-12-2024
 ARG NGX_PREFIX=/etc/nginx
 ARG NGINX_VER=1.27.0
 
@@ -12,7 +12,8 @@ WORKDIR /src
 
 # OpenResty need bash now
 RUN apk update && apk add --no-cache ca-certificates linux-headers build-base patch cmake git libtool autoconf automake bash \
-    libatomic_ops-dev zlib-dev luajit-dev pcre2-dev yajl-dev libxml2-dev libxslt-dev perl-dev curl-dev lmdb-dev libfuzzy2-dev lua5.4-dev gd-dev
+    libatomic_ops-static zlib-static luajit-dev pcre2-dev yajl-static perl-dev curl-static lmdb-dev libfuzzy2-dev lua5.4-dev gd-dev \
+    python3 python3-dev
 
 # OpenSSL
 RUN git clone --depth 1 https://github.com/quictls/openssl.git
@@ -42,6 +43,19 @@ RUN mkdir -p /src/nginx/src/module && cd /src/nginx/src/module && \
     git clone --depth 1 https://github.com/arut/nginx-dav-ext-module.git dav_ext && \
     git clone --depth 1 https://github.com/arut/nginx-rtmp-module.git rtmp
 
+# zlib todo
+# Build static libxml2 libxslt (`make check` need dynamic lib)
+RUN git clone --depth 1 https://gitlab.gnome.org/GNOME/libxml2.git && \
+    git clone --depth 1 https://gitlab.gnome.org/GNOME/libxslt.git && \
+    cd /src/libxml2 && \
+    /src/libxml2/autogen.sh && \
+    CFLAGS='-O2' /src/libxml2/configure --enable-static=yes --enable-shared=no --with-pic && \
+    make -j"$(nproc)" && make install && \
+    cd /src/libxslt && \
+    /src/libxslt/autogen.sh && \
+    CFLAGS='-O2' /src/libxslt/configure --enable-static=yes --enable-shared=no --with-pic && \
+    make -j"$(nproc)" && make install
+
 # Build static brlib
 RUN cd /src/nginx/src/module/brotli/deps/brotli && mkdir out && cd out && \
     cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF \
@@ -56,17 +70,17 @@ RUN git clone --depth 1 --recurse-submodules https://github.com/maxmind/libmaxmi
     /src/libmaxminddb/bootstrap && /src/libmaxminddb/configure --prefix=/usr/local --enable-shared=no --enable-static=yes && \
     make && make check && make install
 
-# WAF
+# Build static libmodsecurity
 RUN git clone --depth 1 --recurse-submodules https://github.com/owasp-modsecurity/ModSecurity.git && \
     cd /src/ModSecurity && \
-    /src/ModSecurity/build.sh && /src/ModSecurity/configure --with-pcre2 --with-lmdb && \
-    make -j"$(nproc)" && make install && \
-    strip -s /usr/local/modsecurity/lib/libmodsecurity.so.3
+    /src/ModSecurity/build.sh && \
+    /src/ModSecurity/configure --prefix=/usr/local/modsecurity --enable-shared=yes --enable-static=yes --with-maxmind --with-lmdb --with-pcre2 && \
+    make -j"$(nproc)" && make install && strip -s /usr/local/modsecurity/lib/libmodsecurity.so
 
 # Build
 RUN cd /src/nginx && wget -O - https://nginx.org/download/nginx-$NGINX_VER.tar.gz | tar -zxf - --strip-components=1 && \
-    patch -p1 < <(curl -sSL https://raw.githubusercontent.com/nginx-modules/ngx_http_tls_dyn_size/master/nginx__dynamic_tls_records_1.25.1%2B.patch) && \
-    patch -p1 < <(curl -sSL https://raw.githubusercontent.com/openresty/openresty/master/patches/nginx-1.27.0-resolver_conf_parsing.patch) && \
+    patch -p1 < <(wget -qO- https://raw.githubusercontent.com/nginx-modules/ngx_http_tls_dyn_size/master/nginx__dynamic_tls_records_1.25.1%2B.patch) && \
+    patch -p1 < <(wget -qO- https://raw.githubusercontent.com/openresty/openresty/master/patches/nginx-1.27.0-resolver_conf_parsing.patch) && \
     /src/nginx/configure \
         --prefix=$NGX_PREFIX \
         # --user=http --group=http \
@@ -109,7 +123,7 @@ RUN cd /src/nginx && wget -O - https://nginx.org/download/nginx-$NGINX_VER.tar.g
         # OTHER
         # --with-google_perftools_module \
         # --with-http_degradation_module \
-        # Third-party modules
+        # 3rd-party modules
         --add-module=src/module/njs/nginx \
         --add-module=src/module/brotli \
         --add-module=src/module/lua_http \
@@ -126,8 +140,8 @@ RUN cd /src/nginx && wget -O - https://nginx.org/download/nginx-$NGINX_VER.tar.g
         --add-module=src/module/dav_ext \
         --add-module=src/module/rtmp \
         # `-m64 -march=native -mtune=native -Ofast` is better than `-march=x86-64 -O2`
-        --with-cc-opt='-m64 -march=native -mtune=native -Ofast -pipe -fomit-frame-pointer -fno-plt -fexceptions -flto -funroll-loops -ffunction-sections -fdata-sections -D_FORTIFY_src=2 -fstack-clash-protection -fcf-protection -Wformat -Werror=format-security -I/usr/local/include -DNGX_QUIC_DEBUG_PACKETS -DNGX_QUIC_DEBUG_CRYPTO' \
-        --with-ld-opt='-Wl,-s -Wl,-Bsymbolic -Wl,--gc-sections,--as-needed,-z,relro,-z,now -flto=auto -L/usr/local/lib -lmaxminddb' \
+        --with-cc-opt='-m64 -march=native -mtune=native -Ofast -pipe -fomit-frame-pointer -fno-plt -fexceptions -flto -funroll-loops -ffunction-sections -fdata-sections -D_FORTIFY_src=2 -fstack-clash-protection -fcf-protection -Wformat -Werror=format-security -I/usr/local/modsecurity/include -DNGX_QUIC_DEBUG_PACKETS -DNGX_QUIC_DEBUG_CRYPTO' \
+        --with-ld-opt='-Wl,-s -Wl,-Bsymbolic -Wl,--gc-sections,--as-needed,-z,relro,-z,now -flto=auto -L/usr/local/modsecurity/lib -lmodsecurity' \
         --with-pcre-jit \
         --with-openssl=/src/openssl \
         --with-debug && \
@@ -146,11 +160,11 @@ ARG NGX_PREFIX=/etc/nginx
 COPY --from=build $NGX_PREFIX                                     $NGX_PREFIX
 COPY --from=build /usr/local/lib/perl5                           /usr/local/lib/perl5
 COPY --from=build /usr/lib/perl5/core_perl/perllocal.pod         /usr/lib/perl5/core_perl/perllocal.pod
-COPY --from=build /usr/local/modsecurity/lib/libmodsecurity.so.3 /usr/local/modsecurity/lib/libmodsecurity.so.3
+COPY --from=build /usr/local/modsecurity/lib/libmodsecurity.so   /usr/local/modsecurity/lib/libmodsecurity.so.3
 COPY --from=build /src/ModSecurity/unicode.mapping               $NGX_PREFIX/conf/conf.d/include/unicode.mapping
 COPY --from=build /src/ModSecurity/modsecurity.conf-recommended  $NGX_PREFIX/conf/conf.d/include/modsecurity.conf.example
 
-RUN apk update && apk add --no-cache ca-certificates tzdata tini zlib luajit pcre2 libstdc++ yajl libxml2 libxslt perl libcurl lmdb libfuzzy2 lua5.4-libs gd && \
+RUN apk update && apk add --no-cache ca-certificates tzdata tini zlib luajit pcre2 libstdc++ yajl libxml2 libxslt perl lmdb libfuzzy2 lua5.4-libs gd && \
     ln -s $NGX_PREFIX/sbin/nginx /usr/sbin/nginx
 ENTRYPOINT ["tini", "--", "nginx"]
 CMD ["-g", "daemon off;"]
