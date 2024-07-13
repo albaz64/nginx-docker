@@ -4,6 +4,8 @@ ARG BUILD=07-12-2024
 ARG NGX_PREFIX=/etc/nginx
 ARG NGINX_VER=1.27.0
 
+ARG LUA_VER=5.4.7
+
 # lua-resty-* require
 ARG LUAJIT_INC=/usr/include/luajit-2.1
 ARG LUAJIT_LIB=/usr/lib
@@ -12,7 +14,7 @@ WORKDIR /src
 
 # OpenResty need bash now
 RUN apk update && apk add --no-cache ca-certificates linux-headers build-base patch cmake git libtool autoconf automake bash \
-    libatomic_ops-static zlib-static luajit-dev pcre2-dev yajl-static perl-dev curl-static lmdb-dev libfuzzy2-dev lua5.4-dev gd-dev \
+    libatomic_ops-static zlib-static luajit-dev pcre2-dev yajl-static perl-dev curl-static lmdb-dev libfuzzy2-dev gd-dev \
     python3 python3-dev
 
 # OpenSSL
@@ -38,11 +40,14 @@ RUN mkdir -p /src/nginx/src/module && cd /src/nginx/src/module && \
     git clone --depth 1 https://github.com/leev/ngx_http_geoip2_module.git geoip2 && \
     git clone --depth 1 https://github.com/aperezdc/ngx-fancyindex.git fancyindex && \
     git clone --depth 1 https://github.com/vision5/ngx_devel_kit.git ndk && \
-    git clone --depth 1 https://github.com/owasp-modsecurity/ModSecurity-nginx.git modsecurity && \
+    git clone --depth 1 https://github.com/albaz64/ModSecurity-nginx.git modsecurity && \
     git clone --depth 1 https://github.com/yaoweibin/ngx_http_substitutions_filter_module.git substitutions_filter && \
     git clone --depth 1 https://github.com/arut/nginx-dav-ext-module.git dav_ext && \
     git clone --depth 1 https://github.com/arut/nginx-rtmp-module.git rtmp
 
+# Build static lua
+RUN wget https://www.lua.org/ftp/lua-$LUA_VER.tar.gz && tar zxf lua-$LUA_VER.tar.gz && \
+    cd lua-$LUA_VER && make all test LDFLAGS='-static' && make install
 # zlib todo
 # Build static libxml2 libxslt (`make check` need dynamic lib)
 RUN git clone --depth 1 https://gitlab.gnome.org/GNOME/libxml2.git && \
@@ -140,8 +145,8 @@ RUN cd /src/nginx && wget -O - https://nginx.org/download/nginx-$NGINX_VER.tar.g
         --add-module=src/module/dav_ext \
         --add-module=src/module/rtmp \
         # `-m64 -march=native -mtune=native -Ofast` is better than `-march=x86-64 -O2`
-        --with-cc-opt='-m64 -march=native -mtune=native -Ofast -pipe -fomit-frame-pointer -fno-plt -fexceptions -flto -funroll-loops -ffunction-sections -fdata-sections -D_FORTIFY_src=2 -fstack-clash-protection -fcf-protection -Wformat -Werror=format-security -I/usr/local/modsecurity/include -DNGX_QUIC_DEBUG_PACKETS -DNGX_QUIC_DEBUG_CRYPTO' \
-        --with-ld-opt='-Wl,-s -Wl,-Bsymbolic -Wl,--gc-sections,--as-needed,-z,relro,-z,now -flto=auto -L/usr/local/modsecurity/lib -lmodsecurity' \
+        --with-cc-opt='-m64 -march=native -mtune=native -Ofast -pipe -fomit-frame-pointer -fno-plt -fexceptions -flto -funroll-loops -ffunction-sections -fdata-sections -D_FORTIFY_src=2 -fstack-clash-protection -fcf-protection -Wformat -Werror=format-security -fPIC -DNGX_QUIC_DEBUG_PACKETS -DNGX_QUIC_DEBUG_CRYPTO' \
+        --with-ld-opt='-Wl,-s -Wl,-Bsymbolic -Wl,--gc-sections,--as-needed,-z,relro,-z,now -flto=auto' \
         --with-pcre-jit \
         --with-openssl=/src/openssl \
         --with-debug && \
@@ -164,7 +169,7 @@ COPY --from=build /usr/local/modsecurity/lib/libmodsecurity.so   /usr/local/mods
 COPY --from=build /src/ModSecurity/unicode.mapping               $NGX_PREFIX/conf/conf.d/include/unicode.mapping
 COPY --from=build /src/ModSecurity/modsecurity.conf-recommended  $NGX_PREFIX/conf/conf.d/include/modsecurity.conf.example
 
-RUN apk update && apk add --no-cache ca-certificates tzdata tini zlib luajit pcre2 libstdc++ yajl libxml2 libxslt perl lmdb libfuzzy2 lua5.4-libs gd && \
+RUN apk update && apk add --no-cache ca-certificates tzdata tini zlib luajit pcre2 libstdc++ libxml2 libxslt perl lmdb libfuzzy2 gd && \
     ln -s $NGX_PREFIX/sbin/nginx /usr/sbin/nginx
 ENTRYPOINT ["tini", "--", "nginx"]
 CMD ["-g", "daemon off;"]
