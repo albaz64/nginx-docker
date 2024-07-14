@@ -6,27 +6,27 @@ ARG NGX_PREFIX=/etc/nginx
 ARG NGINX_VER=1.27.0
 
 # Deps
-ARG LUA_VER=5.4.7
 ARG XML_VER=2.13
 ARG XML_VER_BRANCH=2.13.2
 ARG XSLT_VER=1.1
 ARG XSLT_VER_BRANCH=1.1.42
 
-# lua-resty-* require
-ARG LUAJIT_INC=/usr/include/luajit-2.1
-ARG LUAJIT_LIB=/usr/lib
+# default will find luajit-2.0
+ARG LUAJIT_INC=/usr/local/include/luajit-2.1
+ARG LUAJIT_LIB=/usr/local/lib
 
 WORKDIR /src
 
 RUN apk update && \
     apk add --no-cache ca-certificates linux-headers build-base python3 python3-dev patch cmake git libtool autoconf automake bash \
-        libatomic_ops-static yajl-static curl-static luajit-dev pcre2-dev zlib-static gd-dev perl-dev lmdb-dev libfuzzy2-dev
+        libatomic_ops-static yajl-static curl-static pcre2-dev zlib-static gd-dev perl-dev lmdb-dev libfuzzy2-dev
 
 ###### START BUILD
 
-# Build static lua
-RUN wget https://www.lua.org/ftp/lua-$LUA_VER.tar.gz && tar -zxf lua-$LUA_VER.tar.gz && \
-    cd lua-$LUA_VER && make all test LDFLAGS='-static' && make install
+# Build static OpenResty's branch libluajit
+RUN git clone --depth 1 https://github.com/openresty/luajit2.git && \
+    cd /src/luajit2 && \
+    make -j"$(nproc)" BUILDMODE=static && make install
 
 # Build static libxml2 libxslt (`make check` need dynamic lib)
 RUN wget https://download.gnome.org/sources/libxml2/$XML_VER/libxml2-$XML_VER_BRANCH.tar.xz && \
@@ -39,19 +39,22 @@ RUN wget https://download.gnome.org/sources/libxml2/$XML_VER/libxml2-$XML_VER_BR
     cd /src/libxslt-$XSLT_VER_BRANCH && \
     CFLAGS='-O2' ./configure --enable-static=yes --enable-shared=no --with-pic && \
     make -j"$(nproc)" && make install
-# libz todo
+
+# Build static libz
+RUN git clone --depth 1 https://github.com/madler/zlib.git && \
+    cd zlib && ./configure --static && make && make install
 
 # Build static libmaxminddb
 RUN git clone --depth 1 --recurse-submodules https://github.com/maxmind/libmaxminddb.git && \
     cd /src/libmaxminddb && \
-    /src/libmaxminddb/bootstrap && /src/libmaxminddb/configure --prefix=/usr/local --enable-shared=no --enable-static=yes && \
+    /src/libmaxminddb/bootstrap && /src/libmaxminddb/configure --prefix=/usr/local --enable-shared=no --enable-static=yes --with-pic && \
     make && make check && make install
 
 # Build static libmodsecurity
 RUN git clone --depth 1 --recurse-submodules https://github.com/owasp-modsecurity/ModSecurity.git && \
     cd /src/ModSecurity && \
     /src/ModSecurity/build.sh && \
-    /src/ModSecurity/configure --prefix=/usr/local/modsecurity --enable-shared=yes --enable-static=yes --with-maxmind --with-lmdb --with-pcre2 && \
+    /src/ModSecurity/configure --prefix=/usr/local/modsecurity --enable-shared=yes --enable-static=yes --with-maxmind --with-lmdb --with-pcre2 --with-pic && \
     make -j"$(nproc)" && make install && strip -s /usr/local/modsecurity/lib/libmodsecurity.so
 
 ###### END BUILD
