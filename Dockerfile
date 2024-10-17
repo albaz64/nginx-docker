@@ -1,9 +1,9 @@
 FROM alpine AS build
 
 # CORE
-ARG BUILD=07-14-2024
+ARG BUILD=10-17-2024
 ARG NGX_PREFIX=/etc/nginx
-ARG NGINX_VER=1.27.0
+ARG NGINX_VER=1.27.2
 
 # Deps
 ARG XML_VER=2.13
@@ -95,8 +95,8 @@ RUN git clone --depth 1 https://github.com/quictls/openssl.git
 # Build Nginx
 RUN wget https://nginx.org/download/nginx-$NGINX_VER.tar.gz && \
     tar -zxf nginx-$NGINX_VER.tar.gz && cd nginx-$NGINX_VER && \
-    patch -p1 < <(wget -qO- https://raw.githubusercontent.com/nginx-modules/ngx_http_tls_dyn_size/master/nginx__dynamic_tls_records_1.25.1%2B.patch) && \
-    patch -p1 < <(wget -qO- https://raw.githubusercontent.com/openresty/openresty/master/patches/nginx-1.27.0-resolver_conf_parsing.patch) && \
+    patch -p1 < <(wget -qO- https://raw.githubusercontent.com/nginx-modules/ngx_http_tls_dyn_size/refs/heads/master/nginx__dynamic_tls_records_1.27.2%2B.patch) && \
+    patch -p1 < <(wget -qO- https://raw.githubusercontent.com/openresty/openresty/master/patches/nginx-1.27.1-resolver_conf_parsing.patch) && \
     ./configure \
         --prefix=$NGX_PREFIX \
         # --user=http --group=http \
