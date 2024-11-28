@@ -1,9 +1,9 @@
 FROM alpine AS build
 
 # CORE
-ARG BUILD=10-17-2024
+ARG BUILD=11-29-2024
 ARG NGX_PREFIX=/etc/nginx
-ARG NGINX_VER=1.27.2
+ARG NGINX_VER=1.27.3
 
 # default will find luajit-2.0
 ARG LUAJIT_INC=/usr/local/include/luajit-2.1
@@ -35,7 +35,7 @@ RUN git clone --depth 1 --recurse-submodules https://github.com/owasp-modsecurit
     /src/ModSecurity/configure --prefix=/usr/local/modsecurity --enable-shared=yes --with-maxmind --with-lmdb --with-pcre2 --with-pic && \
     make -j"$(nproc)" && make install && strip -s /usr/local/modsecurity/lib/libmodsecurity.so
 
-###### END BUILD
+    ###### END BUILD
 
 # Modules
 WORKDIR /3rd
@@ -166,7 +166,7 @@ COPY --from=build /src/ModSecurity/modsecurity.conf-recommended  $NGX_PREFIX/con
 
 RUN apk update && \
     apk add --no-cache ca-certificates tzdata tini \
-        luajit pcre2 zlib libxml2 libxslt gd perl lmdb libfuzzy2 libstdc++ && \
+        luajit pcre2 zlib libxml2 libxslt gd perl lmdb libfuzzy2 libstdc++ libcurl yajl lua5.4-libs && \
     ln -s $NGX_PREFIX/sbin/nginx /usr/sbin/nginx
 
 ENTRYPOINT ["tini", "--", "nginx"]

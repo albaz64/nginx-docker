@@ -1,12 +1,12 @@
 services:
-  nginx:
-    image: albaz64/nginx:1.27.0
-    container_name: nginx
+  nginx-dev:
+    image: albaz64/nginx:devel
+    container_name: nginx-dev
     volumes:
-      - ./nginx/conf/nginx.conf:/etc/nginx/conf/nginx.conf:ro
-      - ./nginx/conf/cert/:/etc/nginx/conf/cert:ro
+      - ./nginx.conf:/etc/nginx/conf/nginx.conf:ro
+      #- ./nginx/conf/cert/:/etc/nginx/conf/cert:ro
       - /srv/www/:/etc/nginx/html
-      - ./nginx/logs:/etc/nginx/logs
+      - ./logs:/etc/nginx/logs
       # copy your conf here
       # - ./nginx/swap:/etc/nginx/swap
     environment:
