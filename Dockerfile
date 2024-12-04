@@ -1,7 +1,7 @@
 FROM alpine AS build
 
 # CORE
-ARG BUILD=11-29-2024
+ARG BUILD=12-01-2024
 ARG NGX_PREFIX=/etc/nginx
 ARG NGINX_VER=1.27.3
 
@@ -134,8 +134,11 @@ RUN wget https://nginx.org/download/nginx-$NGINX_VER.tar.gz && \
         --add-module=/3rd/dav_ext \
         --add-module=/3rd/rtmp \
         # `-m64 -march=native -mtune=native -Ofast` is better than `-march=x86-64 -O2`
-        --with-cc-opt='-m64 -march=native -mtune=native -Ofast -pipe -fomit-frame-pointer -fno-plt -fexceptions -flto -funroll-loops -ffunction-sections -fdata-sections -D_FORTIFY_src=2 -fstack-clash-protection -fcf-protection -Wformat -Werror=format-security -fPIC -DNGX_QUIC_DEBUG_PACKETS -DNGX_QUIC_DEBUG_CRYPTO' \
-        --with-ld-opt='-Wl,-s -Wl,-Bsymbolic -Wl,--gc-sections,--as-needed,-z,relro,-z,now -flto=auto' \
+        # Yet another batter of optimization
+        # --with-cc-opt='-m64 -march=native -mtune=native -Ofast -pipe -fomit-frame-pointer -fno-plt -fexceptions -flto -funroll-loops -ffunction-sections -fdata-sections -D_FORTIFY_src=2 -fstack-clash-protection -fcf-protection -Wformat -Werror=format-security -fPIC -DNGX_QUIC_DEBUG_PACKETS -DNGX_QUIC_DEBUG_CRYPTO' \
+        # --with-ld-opt='-Wl,-s -Wl,-Bsymbolic -Wl,--gc-sections,--as-needed,-z,relro,-z,now -flto=auto' \
+        --with-cc-opt='-m64 -O2 -pipe -fPIC -D_FORTIFY_SOURCE=2' \
+        --with-ld-opt='-Wl,-s -Wl,-Bsymbolic -Wl,--gc-sections,--as-needed,-z,relro,-z,now' \
         --with-pcre-jit \
         --with-openssl=/src/openssl \
         --with-debug && \
