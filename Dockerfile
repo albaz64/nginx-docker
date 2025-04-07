@@ -1,9 +1,9 @@
 FROM alpine AS build
 
 # CORE
-ARG BUILD=12-01-2024
+ARG BUILD=4-07-2025
 ARG NGX_PREFIX=/etc/nginx
-ARG NGINX_VER=1.27.3
+ARG NGINX_VER=1.27.4
 
 # default will find luajit-2.0
 ARG LUAJIT_INC=/usr/local/include/luajit-2.1
