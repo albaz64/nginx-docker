@@ -1,17 +1,18 @@
 services:
-  nginx-dev:
-    image: albaz64/nginx:devel
-    container_name: nginx-dev
+  nginx-test:
+    image: albaz64/nginx:latest
+    container_name: nginx-test
     volumes:
+      - /etc/localtime:/etc/localtime:ro
       - ./nginx.conf:/etc/nginx/conf/nginx.conf:ro
       #- ./nginx/conf/cert/:/etc/nginx/conf/cert:ro
-      - /srv/www/:/etc/nginx/html
+      # - /srv/www/:/etc/nginx/html
       - ./logs:/etc/nginx/logs
       # copy your conf here
       # - ./nginx/swap:/etc/nginx/swap
-    environment:
-      - TZ=Asia/Shanghai
-    restart: always
+    # environment:
+    #   - TZ=Asia/Shanghai
+    restart: no
     # ngx_quic_bpf_module need privileged true
     # privileged: true
     network_mode: host

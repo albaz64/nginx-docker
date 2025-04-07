@@ -8,20 +8,20 @@
 Build or pull
 
 ```bash
-docker build -t nginx:1.27.3 .
+docker build -t nginx:latest .
 
-docker pull albaz64/nginx:1.27.3
+docker pull albaz64/nginx:latest
 ```
 
 Check version
 
 ```bash
-$ docker run -it --rm --entrypoint /bin/sh albaz64/nginx:devel -c 'nginx -V'
-nginx version: nginx/1.27.3 (11-29-2024)
-built by gcc 13.2.1 20240309 (Alpine 13.2.1_git20240309) 
+$ docker run -it --rm --entrypoint /bin/sh albaz64/nginx:latest -c 'nginx -V'
+nginx version: nginx/1.27.4 (4-07-2025)
+built by gcc 14.2.0 (Alpine 14.2.0) 
 built with OpenSSL 3.1.7+quic 3 Sep 2024
 TLS SNI support enabled
-configure arguments: --prefix=/etc/nginx --build=11-29-2024 --builddir=build --with-threads --with-file-aio --with-http_addition_module --with-http_auth_request_module --with-http_dav_module --with-http_gunzip_module --with-http_gzip_static_module --with-http_image_filter_module --with-http_mp4_module --with-http_perl_module --with-http_random_index_module --with-http_realip_module --with-http_secure_link_module --with-http_slice_module --with-http_ssl_module --with-http_stub_status_module --with-http_sub_module --with-http_v2_module --with-http_v3_module --with-http_xslt_module --with-mail --with-mail_ssl_module --with-stream --with-stream_realip_module --with-stream_ssl_module --with-stream_ssl_preread_module --add-module=/3rd/njs/nginx --add-module=/3rd/brotli --add-module=/3rd/lua_http --add-module=/3rd/lua_stream --add-module=/3rd/echo --add-module=/3rd/headers --add-module=/3rd/vts --add-module=/3rd/geoip2 --add-module=/3rd/fancyindex --add-module=/3rd/ndk --add-module=/3rd/modsecurity --add-module=/3rd/substitutions_filter --add-module=/3rd/dav_ext --add-module=/3rd/rtmp --with-cc-opt='-m64 -march=native -mtune=native -Ofast -pipe -fomit-frame-pointer -fno-plt -fexceptions -flto -funroll-loops -ffunction-sections -fdata-sections -D_FORTIFY_src=2 -fstack-clash-protection -fcf-protection -Wformat -Werror=format-security -fPIC -DNGX_QUIC_DEBUG_PACKETS -DNGX_QUIC_DEBUG_CRYPTO' --with-ld-opt='-Wl,-s -Wl,-Bsymbolic -Wl,--gc-sections,--as-needed,-z,relro,-z,now -flto=auto' --with-pcre-jit --with-openssl=/src/openssl --with-debug
+configure arguments: --prefix=/etc/nginx --build=4-07-2025 --builddir=build --with-threads --with-file-aio --with-http_addition_module --with-http_auth_request_module --with-http_dav_module --with-http_gunzip_module --with-http_gzip_static_module --with-http_image_filter_module --with-http_mp4_module --with-http_perl_module --with-http_random_index_module --with-http_realip_module --with-http_secure_link_module --with-http_slice_module --with-http_ssl_module --with-http_stub_status_module --with-http_sub_module --with-http_v2_module --with-http_v3_module --with-http_xslt_module --with-mail --with-mail_ssl_module --with-stream --with-stream_realip_module --with-stream_ssl_module --with-stream_ssl_preread_module --add-module=/3rd/njs/nginx --add-module=/3rd/brotli --add-module=/3rd/lua_http --add-module=/3rd/lua_stream --add-module=/3rd/echo --add-module=/3rd/headers --add-module=/3rd/vts --add-module=/3rd/geoip2 --add-module=/3rd/fancyindex --add-module=/3rd/ndk --add-module=/3rd/modsecurity --add-module=/3rd/substitutions_filter --add-module=/3rd/dav_ext --add-module=/3rd/rtmp --with-cc-opt='-m64 -march=x86-64-v3 -mtune=haswell -O2 -pipe -fPIC -fomit-frame-pointer -fno-plt -ffunction-sections -fdata-sections -fstack-clash-protection -fcf-protection -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security -DNGX_QUIC_DEBUG_PACKETS -DNGX_QUIC_DEBUG_CRYPTO' --with-ld-opt='-Wl,-s -Wl,-Bsymbolic -Wl,--gc-sections -Wl,--as-needed -Wl,-z,relro -Wl,-z,now -flto=auto' --with-pcre-jit --with-openssl=/src/openssl --with-debug
 ```
 
 **All files are in `/etc/nginx` (/etc/nginx/conf/nginx.conf)**
