@@ -16,17 +16,15 @@ docker pull albaz64/nginx:latest
 Check version
 
 ```bash
-$ docker run -it --rm --entrypoint /bin/sh albaz64/nginx:latest -c 'nginx -V'
-nginx version: nginx/1.27.4 (4-07-2025)
-built by gcc 14.2.0 (Alpine 14.2.0) 
-built with OpenSSL 3.1.7+quic 3 Sep 2024
+$ docker run -it --rm --entrypoint /bin/sh docker.io/albaz64/nginx:latest -c 'nginx -V'
+nginx version: nginx/1.29.4 (01-26-2026)
+built by clang 21.1.2
+built with OpenSSL 3.5.4 30 Sep 2025
 TLS SNI support enabled
-configure arguments: --prefix=/etc/nginx --build=4-07-2025 --builddir=build --with-threads --with-file-aio --with-http_addition_module --with-http_auth_request_module --with-http_dav_module --with-http_gunzip_module --with-http_gzip_static_module --with-http_image_filter_module --with-http_mp4_module --with-http_perl_module --with-http_random_index_module --with-http_realip_module --with-http_secure_link_module --with-http_slice_module --with-http_ssl_module --with-http_stub_status_module --with-http_sub_module --with-http_v2_module --with-http_v3_module --with-http_xslt_module --with-mail --with-mail_ssl_module --with-stream --with-stream_realip_module --with-stream_ssl_module --with-stream_ssl_preread_module --add-module=/3rd/njs/nginx --add-module=/3rd/brotli --add-module=/3rd/lua_http --add-module=/3rd/lua_stream --add-module=/3rd/echo --add-module=/3rd/headers --add-module=/3rd/vts --add-module=/3rd/geoip2 --add-module=/3rd/fancyindex --add-module=/3rd/ndk --add-module=/3rd/modsecurity --add-module=/3rd/substitutions_filter --add-module=/3rd/dav_ext --add-module=/3rd/rtmp --with-cc-opt='-m64 -march=x86-64-v3 -mtune=haswell -O2 -pipe -fPIC -fomit-frame-pointer -fno-plt -ffunction-sections -fdata-sections -fstack-clash-protection -fcf-protection -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security -DNGX_QUIC_DEBUG_PACKETS -DNGX_QUIC_DEBUG_CRYPTO' --with-ld-opt='-Wl,-s -Wl,-Bsymbolic -Wl,--gc-sections -Wl,--as-needed -Wl,-z,relro -Wl,-z,now -flto=auto' --with-pcre-jit --with-openssl=/src/openssl --with-debug
+configure arguments: --prefix=/etc/nginx --build=01-26-2026 --with-threads --with-file-aio --with-http_realip_module --with-http_addition_module --with-http_xslt_module --with-http_image_filter_module --with-http_sub_module --with-http_dav_module --with-http_mp4_module --with-http_gunzip_module --with-http_gzip_static_module --with-http_auth_request_module --with-http_random_index_module --with-http_secure_link_module --with-http_slice_module --with-http_stub_status_module --with-http_ssl_module --with-http_v2_module --with-http_v3_module --with-mail --with-mail_ssl_module --with-stream --with-stream_realip_module --with-stream_ssl_module --with-stream_ssl_preread_module --add-module=/src/submods/njs/nginx --add-module=/src/submods/brotli --add-module=/src/submods/echo --add-module=/src/submods/headers --add-module=/src/submods/vts --add-module=/src/submods/geoip2 --add-module=/src/submods/fancyindex --add-module=/src/submods/ndk --add-module=/src/submods/modsecurity --add-module=/src/submods/substitutions_filter --add-module=/src/submods/dav_ext --add-module=/src/submods/rtmp --with-cc-opt='-march=x86-64-v3 -O3 -pipe -flto=auto -fPIC -fno-plt -ffunction-sections -fdata-sections -fstack-clash-protection -fcf-protection -D_FORTIFY_SOURCE=2 -Wno-sign-compare -Wformat -Werror=format-security' --with-ld-opt='-fuse-ld=lld -flto=auto -Wl,-O1 -Wl,--sort-common -Wl,-s -Wl,--gc-sections -Wl,--as-needed -Wl,--no-copy-dt-needed-entries -Wl,-z,pack-relative-relocs -Wl,-z,nodlopen -Wl,-z,relro -Wl,-z,now -Wl,-z,noexecstack' --with-pcre-jit
 ```
 
 **All files are in `/etc/nginx` (/etc/nginx/conf/nginx.conf)**
-
-> nginx.conf `http` need `lua_package_path "/etc/nginx/lib/lua/?.lua;;";`
 
 If warn this↓ add `variables_hash_max_size 2048;` to `http`
 `nginx: [warn] could not build optimal variables_hash, you should increase either ariables_hash_max_size: 1024 or variables_hash_bucket_size: 64; ignoring variables_hash_bucket_size`

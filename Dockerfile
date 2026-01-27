@@ -1,49 +1,52 @@
-FROM alpine AS build
+FROM alpine:latest AS build
+SHELL ["/bin/ash", "-eo", "pipefail", "-c"]
 
 # CORE
-ARG BUILD=4-07-2025
+ARG BUILD=01-26-2026
 ARG NGX_PREFIX=/etc/nginx
-ARG NGINX_VER=1.27.4
-
-# default will find luajit-2.0
-ARG LUAJIT_INC=/usr/local/include/luajit-2.1
-ARG LUAJIT_LIB=/usr/local/lib
+ARG NGINX_VER=release-1.29.4
+ARG ARCH=x86-64-v3
 
 WORKDIR /src
 
-RUN apk update && \
-    apk add --no-cache ca-certificates linux-headers build-base python3 python3-dev patch cmake git libtool autoconf automake bash \
-        libatomic_ops-dev zlib-dev luajit-dev pcre2-dev yajl-dev libxml2-dev libxslt-dev perl-dev curl-dev lmdb-dev libfuzzy2-dev lua5.4-dev gd-dev
+RUN apk add --no-cache \
+    # --- Core toolchain ---
+    ca-certificates linux-headers build-base git patch \
+    clang lld llvm pkgconf \
+    # ModSecurity
+    autoconf automake libtool \
+    # --- Nginx deps ---
+    zlib-dev pcre2-dev openssl-dev \
+    libxml2-dev libxslt-dev gd-dev libmaxminddb-dev brotli-dev \
+    # --- ModSecurity deps ---
+    yajl-dev curl-dev lmdb-dev libfuzzy2-dev
 
 ###### START BUILD
-
-# Build OpenResty's branch libluajit
-RUN git clone --depth 1 https://github.com/openresty/luajit2.git && \
-    cd /src/luajit2 && \
-    make -j"$(nproc)" && make install
-
-# Build static libmaxminddb
-RUN git clone --depth 1 --recurse-submodules https://github.com/maxmind/libmaxminddb.git && \
-    cd /src/libmaxminddb && \
-    /src/libmaxminddb/bootstrap && /src/libmaxminddb/configure --prefix=/usr/local --enable-shared=no --enable-static=yes --with-pic && \
-    make && make check && make install
 
 # Build libmodsecurity
 RUN git clone --depth 1 --recurse-submodules https://github.com/owasp-modsecurity/ModSecurity.git && \
     cd /src/ModSecurity && \
     /src/ModSecurity/build.sh && \
-    /src/ModSecurity/configure --prefix=/usr/local/modsecurity --enable-shared=yes --with-maxmind --with-lmdb --with-pcre2 --with-pic && \
-    make -j"$(nproc)" && make install && strip -s /usr/local/modsecurity/lib/libmodsecurity.so
+    # Same with Nginx
+    # export CFLAGS="-march=x86-64-v3 -O3 -pipe -flto=auto -fPIC -fstack-clash-protection -fcf-protection -D_FORTIFY_SOURCE=2" && \
+    # export CXXFLAGS="-march=x86-64-v3 -O3 -pipe -flto=auto -fPIC -fstack-clash-protection -fcf-protection -D_FORTIFY_SOURCE=2" && \
+    # export LDFLAGS="-fuse-ld=lld -flto=auto -Wl,-z,relro -Wl,-z,now -Wl,-z,pack-relative-relocs" && \
+    /src/ModSecurity/configure \
+    --prefix=/usr/local/modsecurity \
+    --with-maxmind \
+    --with-lmdb \
+    --with-pcre2 \
+    --with-pic \
+    --disable-doxygen-doc \
+    --disable-examples && \
+    make -j"$(nproc)" && make install && strip -s /src/ModSecurity/src/.libs/libmodsecurity.so.3
 
-    ###### END BUILD
+###### END BUILD
 
 # Modules
-WORKDIR /3rd
+WORKDIR /src/submods
 RUN git clone --depth 1 https://github.com/nginx/njs.git njs && \
-    # brotli compress
     git clone --depth 1 --recurse-submodules -j8 https://github.com/google/ngx_brotli.git brotli && \
-    git clone --depth 1 https://github.com/openresty/lua-nginx-module.git lua_http && \
-    git clone --depth 1 https://github.com/openresty/stream-lua-nginx-module.git lua_stream && \
     git clone --depth 1 https://github.com/openresty/echo-nginx-module.git echo && \
     git clone --depth 1 https://github.com/openresty/headers-more-nginx-module.git headers && \
     # Virtual host Traffic Status
@@ -51,122 +54,99 @@ RUN git clone --depth 1 https://github.com/nginx/njs.git njs && \
     git clone --depth 1 https://github.com/leev/ngx_http_geoip2_module.git geoip2 && \
     git clone --depth 1 https://github.com/aperezdc/ngx-fancyindex.git fancyindex && \
     git clone --depth 1 https://github.com/vision5/ngx_devel_kit.git ndk && \
-    git clone --depth 1 https://github.com/albaz64/ModSecurity-nginx.git modsecurity && \
+    git clone --depth 1 https://github.com/owasp-modsecurity/ModSecurity-nginx.git modsecurity && \
     git clone --depth 1 https://github.com/yaoweibin/ngx_http_substitutions_filter_module.git substitutions_filter && \
     git clone --depth 1 https://github.com/arut/nginx-dav-ext-module.git dav_ext && \
     git clone --depth 1 https://github.com/arut/nginx-rtmp-module.git rtmp
 
-# Build static brotlienc
-RUN cd /3rd/brotli/deps/brotli && mkdir out && cd out && \
-    cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF \
-        -DCMAKE_C_FLAGS="-Ofast -m64 -march=native -mtune=native -flto -funroll-loops -ffunction-sections -fdata-sections -Wl,--gc-sections" \
-        -DCMAKE_CXX_FLAGS="-Ofast -m64 -march=native -mtune=native -flto -funroll-loops -ffunction-sections -fdata-sections -Wl,--gc-sections" \
-        -DCMAKE_INSTALL_PREFIX=./installed .. && \
-    cmake --build . --config Release --target brotlienc
-
-
 WORKDIR /src
 
-# OpenSSL
-RUN git clone --depth 1 https://github.com/quictls/openssl.git
+# Build Nginx from github source
+RUN git clone https://github.com/nginx/nginx.git --branch "$NGINX_VER" && \
+    cd nginx && \
+    git diff && \
+    git apply < <(wget -qO- https://raw.githubusercontent.com/nginx-modules/ngx_http_tls_dyn_size/refs/heads/master/nginx__dynamic_tls_records_1.29.2%2B.patch)
 
-# Build Nginx
-RUN wget https://nginx.org/download/nginx-$NGINX_VER.tar.gz && \
-    tar -zxf nginx-$NGINX_VER.tar.gz && cd nginx-$NGINX_VER && \
-    patch -p1 < <(wget -qO- https://raw.githubusercontent.com/nginx-modules/ngx_http_tls_dyn_size/refs/heads/master/nginx__dynamic_tls_records_1.27.2%2B.patch) && \
-    patch -p1 < <(wget -qO- https://raw.githubusercontent.com/openresty/openresty/master/patches/nginx-1.27.1-resolver_conf_parsing.patch) && \
-    ./configure \
-        --prefix=$NGX_PREFIX \
-        # --user=http --group=http \
-        --build=$BUILD --builddir=build \
-        --with-threads --with-file-aio \
-        # HTTP
-        --with-http_addition_module \
-        --with-http_auth_request_module \
-        --with-http_dav_module \
-        # --with-http_geoip_module \
-        --with-http_gunzip_module \
-        --with-http_gzip_static_module \
-        # libgd
-        --with-http_image_filter_module \
-        --with-http_mp4_module \
-        # perl
-        --with-http_perl_module \
-        --with-http_random_index_module \
-        --with-http_realip_module \
-        --with-http_secure_link_module \
-        --with-http_slice_module \
-        # OpenSSL
-        --with-http_ssl_module \
-        --with-http_stub_status_module \
-        --with-http_sub_module \
-        --with-http_v2_module \
-        --with-http_v3_module \
-        # libxml2 libxslt
-        --with-http_xslt_module \
-        # --http-client-body-temp-path=temp/client_body_temp --http-proxy-temp-path=temp/proxy_temp --http-fastcgi-temp-path=temp/fastcgi_temp --http-uwsgi-temp-path=temp/uwsgi_temp --http-scgi-temp-path=temp/scgi_temp \
-        # MAIL
-        --with-mail \
-        --with-mail_ssl_module \
-        # STREAM
-        --with-stream \
-        # --with-stream_geoip_module \
-        --with-stream_realip_module \
-        --with-stream_ssl_module \
-        --with-stream_ssl_preread_module \
-        # OTHER
-        # --with-google_perftools_module \
-        # --with-http_degradation_module \
-        # 3rd-party modules
-        --add-module=/3rd/njs/nginx \
-        --add-module=/3rd/brotli \
-        --add-module=/3rd/lua_http \
-        --add-module=/3rd/lua_stream \
-        --add-module=/3rd/echo \
-        --add-module=/3rd/headers \
-        --add-module=/3rd/vts \
-        # libmaxminddb
-        --add-module=/3rd/geoip2 \
-        --add-module=/3rd/fancyindex \
-        --add-module=/3rd/ndk \
-        --add-module=/3rd/modsecurity \
-        --add-module=/3rd/substitutions_filter \
-        --add-module=/3rd/dav_ext \
-        --add-module=/3rd/rtmp \
-        --with-cc-opt='-m64 -march=x86-64-v3 -mtune=haswell -O2 -pipe -fPIC -fomit-frame-pointer -fno-plt -ffunction-sections -fdata-sections -fstack-clash-protection -fcf-protection -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security -DNGX_QUIC_DEBUG_PACKETS -DNGX_QUIC_DEBUG_CRYPTO' \
-        --with-ld-opt='-Wl,-s -Wl,-Bsymbolic -Wl,--gc-sections -Wl,--as-needed -Wl,-z,relro -Wl,-z,now -flto=auto' \
-        --with-pcre-jit \
-        --with-openssl=/src/openssl \
-        --with-debug && \
+RUN export CC=clang && export CXX=clang++ && \
+    cd nginx && \
+    ./auto/configure \
+    --prefix=$NGX_PREFIX \
+    --build=$BUILD \
+    --with-threads --with-file-aio \
+    # HTTP
+    --with-http_realip_module \
+    --with-http_addition_module \
+    # libxml2 libxslt
+    --with-http_xslt_module \
+    # libgd
+    --with-http_image_filter_module \
+    --with-http_sub_module \
+    --with-http_dav_module \
+    --with-http_mp4_module \
+    --with-http_gunzip_module \
+    --with-http_gzip_static_module \
+    --with-http_auth_request_module \
+    --with-http_random_index_module \
+    --with-http_secure_link_module \
+    --with-http_slice_module \
+    --with-http_stub_status_module \
+    # perl
+    # --with-http_perl_module \
+    # OpenSSL
+    --with-http_ssl_module \
+    --with-http_v2_module \
+    --with-http_v3_module \
+    # MAIL
+    --with-mail \
+    --with-mail_ssl_module \
+    # STREAM
+    --with-stream \
+    --with-stream_realip_module \
+    # OpenSSL
+    --with-stream_ssl_module \
+    --with-stream_ssl_preread_module \
+    # 3rd-party modules
+    --add-module=/src/submods/njs/nginx \
+    --add-module=/src/submods/brotli \
+    --add-module=/src/submods/echo \
+    --add-module=/src/submods/headers \
+    --add-module=/src/submods/vts \
+    # libmaxminddb
+    --add-module=/src/submods/geoip2 \
+    --add-module=/src/submods/fancyindex \
+    --add-module=/src/submods/ndk \
+    --add-module=/src/submods/modsecurity \
+    --add-module=/src/submods/substitutions_filter \
+    --add-module=/src/submods/dav_ext \
+    --add-module=/src/submods/rtmp \
+    # --with-cc-opt='-march=x86-64-v3 -O3 -pipe -flto=auto -fPIC -fno-plt -fstack-clash-protection -fcf-protection -D_FORTIFY_SOURCE=2 -Wno-sign-compare -Wformat -Werror=format-security -ffunction-sections -fdata-sections' \
+    # --with-ld-opt='-fuse-ld=lld -flto=auto -Wl,-s -Wl,-O1 -Wl,--gc-sections -Wl,--as-needed -Wl,-z,relro -Wl,-z,now -Wl,-z,pack-relative-relocs -Wl,-z,noexecstack -Wl,-z,nodlopen -Wl,--no-copy-dt-needed-entries -Wl,--sort-common' \
+    --with-cc-opt="-march=$ARCH -O3 -pipe -flto=auto -fPIC -fno-plt -ffunction-sections -fdata-sections -fstack-clash-protection -fcf-protection -D_FORTIFY_SOURCE=2 -Wno-sign-compare -Wformat -Werror=format-security" \
+    --with-ld-opt="-fuse-ld=lld -flto=auto -Wl,-O1 -Wl,--sort-common -Wl,-s -Wl,--gc-sections -Wl,--as-needed -Wl,--no-copy-dt-needed-entries -Wl,-z,pack-relative-relocs -Wl,-z,nodlopen -Wl,-z,relro -Wl,-z,now -Wl,-z,noexecstack" \
+    --with-pcre-jit && \
     make -j"$(nproc)" && make install && \
     rm $NGX_PREFIX/conf/*.default && \
-    strip -s $NGX_PREFIX/sbin/nginx
+    $NGX_PREFIX/sbin/nginx -V
 
-# Install OpenResty lua core
-RUN git clone --depth 1 https://github.com/openresty/lua-resty-core.git && \
-    git clone --depth 1 https://github.com/openresty/lua-resty-lrucache.git && \
-    cd /src/lua-resty-core && make install PREFIX=$NGX_PREFIX && \
-    cd /src/lua-resty-lrucache && make install PREFIX=$NGX_PREFIX && \
-    perl /src/openssl/configdata.pm --dump
+FROM alpine:latest
+SHELL ["/bin/ash", "-eo", "pipefail", "-c"]
 
-FROM alpine
-
-VOLUME ["/etc/nginx"]
-WORKDIR /etc/nginx
+RUN apk add --no-cache \
+    ca-certificates tzdata tini \
+    # Nginx
+    pcre2 zlib brotli-libs libssl3 libxml2 libxslt libgd libmaxminddb-libs \
+    # ModSecurity
+    libstdc++ libgcc libcurl yajl lmdb libfuzzy2
 
 ARG NGX_PREFIX=/etc/nginx
+WORKDIR $NGX_PREFIX
 
 COPY --from=build $NGX_PREFIX                                     $NGX_PREFIX
-COPY --from=build /usr/local/lib/perl5                           /usr/local/lib/perl5
-COPY --from=build /usr/lib/perl5/core_perl/perllocal.pod         /usr/lib/perl5/core_perl/perllocal.pod
-COPY --from=build /usr/local/modsecurity/lib/libmodsecurity.so   /usr/local/modsecurity/lib/libmodsecurity.so.3
-COPY --from=build /src/ModSecurity/unicode.mapping               $NGX_PREFIX/conf/conf.d/include/unicode.mapping
-COPY --from=build /src/ModSecurity/modsecurity.conf-recommended  $NGX_PREFIX/conf/conf.d/include/modsecurity.conf.example
+COPY --from=build /src/ModSecurity/src/.libs/libmodsecurity.so.3 /usr/local/lib/libmodsecurity.so.3
+COPY --from=build /src/ModSecurity/unicode.mapping               $NGX_PREFIX/conf/include/unicode.mapping
+COPY --from=build /src/ModSecurity/modsecurity.conf-recommended  $NGX_PREFIX/conf/include/modsecurity.conf-recommended
 
-RUN apk update && \
-    apk add --no-cache ca-certificates tzdata tini \
-        luajit pcre2 zlib libxml2 libxslt gd perl lmdb libfuzzy2 libstdc++ libcurl yajl lua5.4-libs && \
-    ln -s $NGX_PREFIX/sbin/nginx /usr/sbin/nginx
+RUN ln -s $NGX_PREFIX/sbin/nginx /usr/sbin/nginx && ldconfig /usr/local/lib
 
 ENTRYPOINT ["tini", "--", "nginx"]
 CMD ["-g", "daemon off;"]

@@ -1,6 +1,6 @@
 services:
   nginx-test:
-    image: albaz64/nginx:latest
+    image: docker.io/albaz64/nginx:1.29.4-x86-64-v3
     container_name: nginx-test
     volumes:
       - /etc/localtime:/etc/localtime:ro
@@ -12,7 +12,7 @@ services:
       # - ./nginx/swap:/etc/nginx/swap
     # environment:
     #   - TZ=Asia/Shanghai
-    restart: no
+    restart: "no"
     # ngx_quic_bpf_module need privileged true
     # privileged: true
     network_mode: host
