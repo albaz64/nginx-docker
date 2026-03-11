@@ -1,5 +1,5 @@
-FROM alpine:3.21 AS base
-ARG ARCH=x86-64-v3
+FROM alpine:3.23 AS base
+ARG ARCH=x86-64
 
 FROM base AS deps
 RUN apk add --no-cache \
@@ -43,14 +43,14 @@ RUN git clone --depth 1 https://github.com/nginx/njs.git && \
     git clone --depth 1 https://github.com/arut/nginx-rtmp-module.git rtmp
 
 FROM deps AS nginx-src
-ARG NGINX_VER=release-1.29.4
+ARG NGINX_VER=release-1.29.5
 WORKDIR /src
 RUN git clone --depth 1 --branch "$NGINX_VER" https://github.com/nginx/nginx.git
 RUN cd nginx && \
     wget -qO- https://raw.githubusercontent.com/nginx-modules/ngx_http_tls_dyn_size/master/nginx__dynamic_tls_records_1.29.2%2B.patch | git apply
 
 FROM nginx-src AS build
-ARG BUILD=01-30-2026
+ARG BUILD=03-09-2026
 ARG NGX_PREFIX=/etc/nginx
 ARG ARCH
 COPY --from=modsecurity /usr/local/modsecurity /usr/local/modsecurity
@@ -105,7 +105,7 @@ RUN export CC=clang CXX=clang++ && \
     rm $NGX_PREFIX/conf/*.default && \
     $NGX_PREFIX/sbin/nginx -V
 
-FROM alpine:3.21
+FROM alpine:3.23
 RUN apk add --no-cache \
     ca-certificates tzdata tini \
     pcre2 zlib brotli-libs libssl3 libxml2 libxslt libgd libmaxminddb-libs \
