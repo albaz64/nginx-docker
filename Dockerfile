@@ -1,5 +1,7 @@
 FROM alpine:3.23 AS base
 ARG ARCH=x86-64
+ARG BUILD_DATE
+LABEL org.opencontainers.image.created=$BUILD_DATE
 
 FROM base AS deps
 RUN apk add --no-cache \
@@ -43,14 +45,14 @@ RUN git clone --depth 1 https://github.com/nginx/njs.git && \
     git clone --depth 1 https://github.com/arut/nginx-rtmp-module.git rtmp
 
 FROM deps AS nginx-src
-ARG NGINX_VER=release-1.29.5
+ARG NGINX_VER
 WORKDIR /src
 RUN git clone --depth 1 --branch "$NGINX_VER" https://github.com/nginx/nginx.git
 RUN cd nginx && \
     wget -qO- https://raw.githubusercontent.com/nginx-modules/ngx_http_tls_dyn_size/master/nginx__dynamic_tls_records_1.29.2%2B.patch | git apply
 
 FROM nginx-src AS build
-ARG BUILD=03-09-2026
+ARG BUILD_DATE
 ARG NGX_PREFIX=/etc/nginx
 ARG ARCH
 COPY --from=modsecurity /usr/local/modsecurity /usr/local/modsecurity
@@ -61,7 +63,7 @@ WORKDIR /src/nginx
 RUN export CC=clang CXX=clang++ && \
     ./auto/configure \
         --prefix=$NGX_PREFIX \
-        --build=$BUILD \
+        --build=$BUILD_DATE \
         --with-threads --with-file-aio \
         --with-http_realip_module \
         --with-http_addition_module \
